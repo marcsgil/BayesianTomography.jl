@@ -11,7 +11,7 @@ end
 
 function hermite_position_operator(r, order)
     N = exp(-sum(abs2, r)) / (π * 2^order)
-    N * [(hermiteh(m1, r[1]) * hermiteh(order - m1, r[2]) * hermiteh(m2, r[1]) * hermiteh(order - m2, r[2])
+    N * [(hermiteh(order - m1, r[1]) * hermiteh(m1, r[2]) * hermiteh(order - m2, r[1]) * hermiteh(m2, r[2])
           /
           √prod(factorial, (m1, order - m1, m2, order - m2))) for m1 ∈ 0:order, m2 ∈ 0:order]
 end

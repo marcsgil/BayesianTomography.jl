@@ -29,10 +29,20 @@ function simulate_outcomes(ψ::AbstractArray, operators, N, atol=1e-3)
     outcomes
 end
 
-function array_representation(operators, outcomes::Dict{T1,T2}) where {T1,T2}
-    result = similar(operators, T2)
+function array_representation(outcomes::Dict{Int,T}, size) where {T<:Int}
+    result = Array{T}(undef, size)
     for n ∈ eachindex(result)
         result[n] = get(outcomes, n, 0)
+    end
+    result
+end
+
+function dict_representation(outcomes::Array{T,N}) where {T<:Int,N}
+    result = Dict{Int,Int}()
+    for (outcome, value) ∈ enumerate(outcomes)
+        if value != 0
+            result[outcome] = value
+        end
     end
     result
 end

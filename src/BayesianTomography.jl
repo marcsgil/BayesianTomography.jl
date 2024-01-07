@@ -7,7 +7,7 @@ using Optim, LineSearches
 using Parameters, UnPack
 
 include("utils.jl")
-export simulate_outcomes, array_representation
+export simulate_outcomes, array_representation, dict_representation
 
 include("augmentation.jl")
 export compose_povm, unitary_transform, augment_povm
