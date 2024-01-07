@@ -1,6 +1,3 @@
-θ_transform(θ) = acos(cos(θ))
-ϕ_transform(ϕ) = mod2pi(ϕ)
-
 function angular_transform!(angles)
     n = length(angles) ÷ 2
     @. angles[1:n] = acos(cos(@view angles[1:n]))
@@ -32,15 +29,10 @@ function simulate_outcomes(ψ::AbstractArray, operators, N, atol=1e-3)
     outcomes
 end
 
-function compose_povm(args...)
-    N = length(args)
-    stack(arg / N for arg in args)
-end
-
-function unitary_transform(operators, unitary)
-    [unitary' * operator * unitary for operator in operators]
-end
-
-function augment_povm(povm, unitaries...)
-    compose_povm(povm, (unitary_transform(povm, unitary) for unitary ∈ unitaries)...)
+function array_representation(operators, outcomes::Dict{T1,T2}) where {T1,T2}
+    result = similar(operators, T2)
+    for n ∈ eachindex(result)
+        result[n] = get(outcomes, n, 0)
+    end
+    result
 end

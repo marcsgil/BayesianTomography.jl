@@ -1,20 +1,20 @@
 module BayesianTomography
 
 using Distributions, LinearAlgebra
-using LogDensityProblems, AdvancedMH, MCMCChains, AbstractMCMC
-using LogDensityProblemsAD, ForwardDiff, Random
-using AdvancedHMC
-using Logging
-using Optimization, OptimizationOptimJL, OptimizationOptimisers, Optim, LineSearches
+using LogDensityProblems, LogDensityProblemsAD, ForwardDiff, MCMCChains, AbstractMCMC
+using AdvancedHMC, AdvancedMH
+using Optim, LineSearches
 using Parameters, UnPack
 
 include("utils.jl")
-export compose_povm, unitary_transform, augment_povm, simulate_outcomes, circular_mean
+export simulate_outcomes, array_representation
+
+include("augmentation.jl")
+export compose_povm, unitary_transform, augment_povm
 
 using ClassicalOrthogonalPolynomials, Integrals
 include("position_operators.jl")
 export assemble_position_operators, hg_product, hg, hermite_position_operator
-export MaximumLikelihood, MetropolisHastings, HamiltonianMC
 
 include("samplers.jl")
 export sample_haar_unitary, sample_haar_vector
@@ -22,5 +22,6 @@ export sample_haar_unitary, sample_haar_vector
 include("pure_states.jl")
 export hurwitz_parametrization, f, log_likellyhood, log_prior,
     PureLogPosterior, sample_posterior, prediction, random_angles, hg
+export MaximumLikelihood, MetropolisHastings, HamiltonianMC
 
 end
