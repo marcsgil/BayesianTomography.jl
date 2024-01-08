@@ -126,3 +126,16 @@ mean(fids)
 file = h5open("results/exp_fids.h5", "cw")
 file["order$order"] = mean(fids)
 close(file)
+##
+file = h5open("results/exp_fids.h5", "r")
+fids = [read(file["order$order"]) for order ∈ 1:5]
+close(file)
+
+fig = Figure()
+ax = CairoMakie.Axis(fig[1, 1],
+    xlabel="Order",
+    ylabel="Mean Fidelity",
+    title="Experimental Fidelities")
+ylims!(ax, 0.96, 1.001)
+lines!(1:5, fids)
+fig
