@@ -24,4 +24,7 @@ export hurwitz_parametrization, f, log_likellyhood, log_prior,
     PureLogPosterior, sample_posterior, prediction, random_angles, hg
 export MaximumLikelihood, MetropolisHastings, HamiltonianMC
 
+include("linear_inversion.jl")
+export A, B, C, LinearInversion, prediction
+
 end
