@@ -37,6 +37,14 @@ function array_representation(outcomes::Dict{Int,T}, size) where {T<:Int}
     result
 end
 
+function array_representation(outcomes::Vector{T}, size) where {T<:Int}
+    result = zeros(T, size)
+    for outcome ∈ outcomes
+        result[outcome] += 1
+    end
+    result
+end
+
 function dict_representation(outcomes::Array{T,N}) where {T<:Int,N}
     result = Dict{Int,Int}()
     for (outcome, value) ∈ enumerate(outcomes)
