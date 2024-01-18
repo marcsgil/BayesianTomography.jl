@@ -68,7 +68,7 @@ function treat_image(image; res=nothing, counts=nothing)
     end
 end
 
-order = 5
+order = 2
 file = h5open("datasets/pure_dataset.h5")
 _images = read(file["images_order$order"])
 images = stack(imresize(image, 64, 64) for image ∈ eachslice(_images, dims=(3, 4)))
@@ -92,7 +92,7 @@ heatmap!(ax1, images[:, :, astig, index])
 heatmap!(ax2, timage[:, :, astig, index])
 fig
 ##
-index = 1
+index = 2
 
 dresult = fit_grid(images[:, :, 1, index], coeffs[:, 1], false)
 cresult = fit_grid(images[:, :, 2, index], coeffs[:, 1], true)
@@ -109,14 +109,27 @@ astig_operators = unitary_transform(astig_operators, mode_converter)
 operators = compose_povm(direct_operators, astig_operators)
 ##
 fids = Vector{Float64}(undef, 100)
-mthd = MetropolisHastings(; nchains=8)
+ispossdef = Vector{Bool}(undef, 100)
+#mthd = MetropolisHastings(; nchains=8)
+mthd = LinearInversion(order + 1; α=3)
+
+function is_positive_semi_definite(A)
+    # Compute the eigenvalues of A
+    eigenvalues = eigvals(A)
+
+    # Check if all eigenvalues are non-negative
+    return all(real(eigenvalue) >= 0 for eigenvalue in eigenvalues)
+end
 
 p = Progress(length(fids))
-Threads.@threads for n ∈ eachindex(fids)
-    treated_image = treat_image(images[:, :, :, n]; counts=2^16)
+for n ∈ eachindex(fids)
+    treated_image = treat_image(images[:, :, :, n])
     outcomes = dict_representation(treated_image)
-    pred_angles = prediction(outcomes, operators, mthd)
-    fids[n] = abs2(coeffs[:, n] ⋅ hurwitz_parametrization(pred_angles))
+    #pred_angles = prediction(outcomes, operators, mthd)
+    ρ = prediction(normalize(treated_image, 1), operators, mthd)
+    #fids[n] = abs2(coeffs[:, n] ⋅ hurwitz_parametrization(pred_angles))
+    fids[n] = real(dot(coeffs[:, n], ρ, coeffs[:, n]))
+    #ispossdef[n] = is_positive_semi_definite(ρ)
     next!(p)
 end
 finish!(p)
