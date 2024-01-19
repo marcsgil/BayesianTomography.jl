@@ -31,5 +31,7 @@ function write_calibration_info(dest, src)
     close(file)
 end
 
-write_calibration_info("ExperimentalData/UFMG/Order1/results.h5",
-    "ExperimentalData/UFMG/Order1/calibration.tif")
+order = 1
+
+write_calibration_info("ExperimentalData/UFMG/Order$order/results.h5",
+    "ExperimentalData/UFMG/Order$order/calibration.tif")

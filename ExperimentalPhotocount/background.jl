@@ -12,5 +12,7 @@ function write_background_info(dest, src)
     close(file)
 end
 
-write_background_info("ExperimentalData/UFMG/Order1/results.h5",
-    "ExperimentalData/UFMG/Order1/background.tif")
+order = 1
+
+write_background_info("ExperimentalData/UFMG/Order$order/results.h5",
+    "ExperimentalData/UFMG/Order$order/background.tif")

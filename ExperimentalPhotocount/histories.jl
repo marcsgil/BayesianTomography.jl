@@ -54,9 +54,11 @@ function write_history(key, dest, src, bg_src, calib_src, threshold)
     close(file)
 end
 
+order = 1
+
 @showprogress for i ∈ 0:49
-    write_history("$(i+1)", "ExperimentalData/UFMG/Order1/results.h5",
-        "ExperimentalData/UFMG/Order1/a$i.tif",
-        "ExperimentalData/UFMG/Order1/results.h5",
-        "ExperimentalData/UFMG/Order1/results.h5", 5)
+    write_history("$(i+1)", "ExperimentalData/UFMG/Order$order/results.h5",
+        "ExperimentalData/UFMG/Order$order/$i.tif",
+        "ExperimentalData/UFMG/Order$order/results.h5",
+        "ExperimentalData/UFMG/Order$order/results.h5", 5)
 end
