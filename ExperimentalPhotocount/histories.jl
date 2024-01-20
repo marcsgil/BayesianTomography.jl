@@ -2,24 +2,29 @@ using TiffImages, HDF5, Statistics, Tullio, ProgressMeter
 
 get_value(x) = x.val
 
-function extract_counts(frames, μ, σ, threshold)
-    frames = (frames .- μ) ./ (threshold * σ)
-    map!(x -> x > 0 ? Int(floor(x)) : 0, frames, frames)
-    permutedims(cumsum(frames, dims=3), (2, 1, 3))
+floor_relu(x) = x > 0 ? UInt8(floor(x)) : 0
+
+function extract_photons(frames, μ, σ, threshold)
+    @tullio treated_frames[i, j, k] := floor_relu((frames[i, j, k] - μ[i, j]) / (threshold * σ[i, j]))
 end
 
-function remove_noise!(counts, xd, yd, xc, yc, threshold)
-    @tullio counts[i, j, 1, l] *= xd[i]^2 + yd[j]^2 > threshold ? 0 : 1
-    @tullio counts[i, j, 2, l] *= xc[i]^2 + yc[j]^2 > threshold ? 0 : 1
+function circular_mask!(images, radius, xd, yd, xc, yc)
+    @tullio images[i, j, 1, k] *= xd[i]^2 + yd[j]^2 > radius ? 0 : 1
+    @tullio images[i, j, 2, k] *= xc[i]^2 + yc[j]^2 > radius ? 0 : 1
     return nothing
 end
 
-function history_vector(counts)
+function format(images)
+    result = reshape(images, (size(images, 1), size(images, 2) ÷ 2, 2, :))
+    reverse!(result, dims=3)
+    permutedims(result, (2, 1, 3, 4))
+end
+
+function history_vector(images)
     history = Int64[]
-    for n ∈ 2:size(counts, 4)
-        Δ = counts[:, :, :, n] - counts[:, :, :, n-1]
-        for k ∈ eachindex(Δ)
-            for _ ∈ 1:Δ[k]
+    for image ∈ eachslice(images, dims=4)
+        for k ∈ eachindex(image)
+            for _ ∈ 1:image[k]
                 push!(history, k)
             end
         end
@@ -27,38 +32,25 @@ function history_vector(counts)
     history
 end
 
-function write_history(key, dest, src, bg_src, calib_src, threshold)
-    bg_file = h5open(bg_src, "r")
-    μ = read(bg_file["mean_background"])
-    σ = read(bg_file["std_background"])
-    close(bg_file)
+function history_vector(srcs, config, threshold, radius)
+    result = Vector{Vector{Int64}}(undef, length(srcs))
+    config_file = h5open(config, "r")
+    μ = read(config_file["mean_background"])
+    σ = read(config_file["std_background"])
+    direct_limits = config_file["direct_limits"][:]
+    converted_limits = config_file["converted_limits"][:]
+    xd = LinRange(direct_limits[1], direct_limits[3], 64)
+    yd = LinRange(direct_limits[2], direct_limits[4], 64)
+    xc = LinRange(converted_limits[1], converted_limits[3], 64)
+    yc = LinRange(converted_limits[2], converted_limits[4], 64)
+    close(config_file)
 
-    calib_file = h5open(calib_src, "r")
-    direct_limits = calib_file["direct_limits"][:]
-    converted_limits = calib_file["converted_limits"][:]
-    close(calib_file)
-
-    frames = get_value.(TiffImages.load(src))
-    _counts = extract_counts(frames, μ, σ, threshold)
-    L = size(_counts, 1) ÷ 2
-    counts = stack([_counts[L+1:end, :, :], _counts[1:L, :, :]], dims=3)
-
-    xd = LinRange(direct_limits[1], direct_limits[3], L)
-    yd = LinRange(direct_limits[2], direct_limits[4], L)
-    xc = LinRange(converted_limits[1], converted_limits[3], L)
-    yc = LinRange(converted_limits[2], converted_limits[4], L)
-    remove_noise!(counts, xd, yd, xc, yc, 5)
-
-    file = h5open(dest, "cw")
-    file[key] = history_vector(counts)
-    close(file)
-end
-
-order = 1
-
-@showprogress for i ∈ 0:49
-    write_history("$(i+1)", "ExperimentalData/UFMG/Order$order/results.h5",
-        "ExperimentalData/UFMG/Order$order/$i.tif",
-        "ExperimentalData/UFMG/Order$order/results.h5",
-        "ExperimentalData/UFMG/Order$order/results.h5", 5)
+    Threads.@threads for i ∈ eachindex(srcs)
+        src = srcs[i]
+        frames = get_value.(TiffImages.load(src, verbose=false))
+        photons = extract_photons(frames, μ, σ, threshold) |> format
+        circular_mask!(photons, radius, yd, xd, yc, xc)
+        result[i] = history_vector(photons)
+    end
+    result
 end
