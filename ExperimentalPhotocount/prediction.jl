@@ -41,6 +41,19 @@ config = "ExperimentalResults/UFMG/config.h5"
 histories = history_vector(srcs, config, 6, 6);
 mean(length, histories)
 ##
+x = []
+for history ∈ histories
+    if length(history) ≥ 4096
+        push!(x, array_representation(history[1:4096], (64, 64, 2)))
+    end
+end
+x = mapslices(normalize, stack(x), dims=(1, 2))
+heatmap(x[:, :, 1, 1], colormap=:hot)
+sum(x[:, :, 1, 1])
+file = h5open("../ModeRecognitionJulia/Datasets/UFMG/results.h5", "cw")
+file["order$order"] = x
+close(file)
+##
 #file = h5open("ExperimentalResults/UFMG/Order$order/results.h5")
 @showprogress for i ∈ 7
     n = nobs[i]
