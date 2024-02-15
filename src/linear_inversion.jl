@@ -45,11 +45,12 @@ struct LinearInversion{T,N}
     α::Float64
     function LinearInversion(d, basis=nothing; α=0)
         if isnothing(basis)
+            I_d = Matrix{Float64}(I, d, d)
             Js = triangular_indices(d)
             As = [A_matrix(j, d) for j ∈ 1:d-1]
             Bs = [B_matrix(J..., d) for J ∈ Js]
             Cs = [C_matrix(J..., d) for J ∈ Js]
-            basis = vcat(As, Bs, Cs)
+            basis = vcat([I_d / √d], As, Bs, Cs)
         end
 
         T = complex(float(eltype(first(basis))))
@@ -66,15 +67,9 @@ function project(ρ)
 end
 
 function prediction(outcomes, povm, method::LinearInversion)
-    d = size(first(povm), 1)
     A = [real(tr(E * Ω)) for E ∈ vec(povm), Ω ∈ vec(method.basis)]
-    e = [real(tr(E)) / d for E ∈ vec(povm)]
     vec_outcomes = vec(outcomes)
-    function loss(c)
-        sum(abs2, A * c + e - vec_outcomes)
-    end
-    result = optimize(loss, zeros(length(method.basis)))
-    c = Optim.minimizer(result)
-    ρ = I / d + sum(c * Ω for (c, Ω) ∈ zip(c, method.basis))
-    project(ρ)
+
+    xs = inv(A' * A) * A' * vec_outcomes
+    ρ = sum(x * Ω for (x, Ω) ∈ zip(xs, method.basis))
 end

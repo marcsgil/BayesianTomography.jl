@@ -14,8 +14,17 @@ end
 
 circular_mean(ϕs; dims=1:ndims(ϕs)) = mod2pi.(atan.(sum(sin, ϕs; dims), sum(cos, ϕs; dims)))
 
-function simulate_outcomes(ψ::AbstractArray, operators, N, atol=1e-3)
+function simulate_outcomes(ψ::Vector{T}, operators, N; atol=1e-3) where {T}
     probs = [real(dot(ψ, E, ψ)) for E in operators]
+    simulate_outcomes(probs, N; atol)
+end
+
+function simulate_outcomes(ρ::Matrix{T}, operators, N; atol=1e-3) where {T}
+    probs = [real(ρ ⋅ E) for E in operators]
+    simulate_outcomes(probs, N; atol)
+end
+
+function simulate_outcomes(probs, N; atol=1e-3)
     @assert minimum(probs) ≥ -atol "The probabilities must be non-negative"
     S = sum(probs)
     @assert isapprox(S, 1; atol) "The sum of the probabilities is not 1, but $S"
