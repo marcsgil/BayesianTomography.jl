@@ -34,7 +34,7 @@ function fit_grid(image, coeffs, is_astig)
             @tullio basis[x, y, i] *= (-im)^i
         end
 
-        @tullio prediction[x, y] := coeffs[j, k] * basis[x, y, j] * conj(basis[x, y, k]) |> abs2
+        @tullio prediction[x, y] := coeffs[k, j] * basis[x, y, j] * conj(basis[x, y, k]) |> real
         mapreduce((x, y) -> (x - y)^2, +, normalize(image), normalize(prediction))
     end
     optimize(f, [-4.0, -4.0, 4.0, 4.0])
@@ -68,7 +68,7 @@ function treat_image(image; res=nothing, counts=nothing)
     end
 end
 
-order = 1
+order = 2
 file = h5open("ExperimentalData/mixed_dataset.h5")
 _images = read(file["images_order$order"])
 images = stack(imresize(image, 64, 64) for image ∈ eachslice(_images, dims=(3, 4)))
@@ -77,10 +77,10 @@ close(file)
 ##
 r = LinRange(-3, 3, 512)
 basis = fit_basis(images[:, :, :, 1], ρs[:, :, 1])
-@tullio timage[x, y, i, image] := ρs[j, k, image] * basis[x, y, i, j] * conj(basis[x, y, i, k]) |> abs2
+@tullio timage[x, y, i, image] := ρs[k, j, image] * basis[x, y, i, j] * conj(basis[x, y, i, k]) |> real
 ##
-index = 7
-astig = 1
+index = 3
+astig = 2
 
 fig = Figure(resolution=(1000, 500))
 ax1 = CairoMakie.Axis(fig[1, 1],
@@ -93,8 +93,8 @@ fig
 ##
 index = 2
 
-dresult = fit_grid(images[:, :, 1, index], coeffs[:, 1], false)
-cresult = fit_grid(images[:, :, 2, index], coeffs[:, 1], true)
+dresult = fit_grid(images[:, :, 1, index], ρs[:, :, 1], false)
+cresult = fit_grid(images[:, :, 2, index], ρs[:, :, 1], true)
 xd = LinRange(dresult.minimizer[1], dresult.minimizer[3], 65)
 yd = LinRange(dresult.minimizer[2], dresult.minimizer[4], 65)
 xc = LinRange(cresult.minimizer[1], cresult.minimizer[3], 65)
@@ -110,7 +110,7 @@ operators = compose_povm(direct_operators, astig_operators)
 fids = Vector{Float64}(undef, 100)
 ispossdef = Vector{Bool}(undef, 100)
 #mthd = MetropolisHastings(; nchains=8)
-mthd = LinearInversion(order + 1; α=3)
+mthd = LinearInversion(order + 1)
 
 function is_positive_semi_definite(A)
     # Compute the eigenvalues of A
@@ -120,14 +120,15 @@ function is_positive_semi_definite(A)
     return all(real(eigenvalue) >= 0 for eigenvalue in eigenvalues)
 end
 
-p = Progress(length(fids))
+p = Progress(length(fids));
 for n ∈ eachindex(fids)
     treated_image = treat_image(images[:, :, :, n])
-    outcomes = dict_representation(treated_image)
+    probs = normalize(treated_image, 1)
     #pred_angles = prediction(outcomes, operators, mthd)
-    ρ = prediction(normalize(treated_image, 1), operators, mthd)
+    σ = prediction(probs, operators, mthd)
     #fids[n] = abs2(coeffs[:, n] ⋅ hurwitz_parametrization(pred_angles))
-    fids[n] = real(dot(coeffs[:, n], ρ, coeffs[:, n]))
+    sqrt_ρ = sqrt(ρs[:, :, n])
+    fids[n] = abs2(tr(sqrt((sqrt_ρ * σ * sqrt_ρ))))
     #ispossdef[n] = is_positive_semi_definite(ρ)
     next!(p)
 end
