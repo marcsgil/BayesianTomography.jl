@@ -34,7 +34,7 @@ function fit_grid(image, coeffs, is_astig)
             @tullio basis[x, y, i] *= (-im)^i
         end
 
-        @tullio prediction[x, y] := coeffs[j] * basis[x, y, j] |> abs2
+        @tullio prediction[x, y] := coeffs[j, k] * basis[x, y, j] * conj(basis[x, y, k]) |> abs2
         mapreduce((x, y) -> (x - y)^2, +, normalize(image), normalize(prediction))
     end
     optimize(f, [-4.0, -4.0, 4.0, 4.0])
@@ -47,7 +47,7 @@ function fit_basis(image, coeffs)
     yd = LinRange(dresult.minimizer[2], dresult.minimizer[4], size(image, 2))
     xc = LinRange(cresult.minimizer[1], cresult.minimizer[3], size(image, 1))
     yc = LinRange(cresult.minimizer[2], cresult.minimizer[4], size(image, 2))
-    build_basis(xd, yd, xc, yc, length(coeffs) - 1)
+    build_basis(xd, yd, xc, yc, size(coeffs, 1) - 1)
 end
 
 function treat_image(image; res=nothing, counts=nothing)
@@ -68,19 +68,18 @@ function treat_image(image; res=nothing, counts=nothing)
     end
 end
 
-order = 2
-file = h5open("datasets/pure_dataset.h5")
+order = 1
+file = h5open("ExperimentalData/mixed_dataset.h5")
 _images = read(file["images_order$order"])
 images = stack(imresize(image, 64, 64) for image ∈ eachslice(_images, dims=(3, 4)))
-_coeffs = read(file["coefficients_order$order"])
-coeffs = _coeffs[1:order+1, :] + im * _coeffs[order+2:end, :]
+ρs = read(file["labels_order$order"])
 close(file)
 ##
 r = LinRange(-3, 3, 512)
-basis = fit_basis(images[:, :, :, 1], coeffs[:, 1])
-@tullio timage[x, y, i, image] := coeffs[j, image] * basis[x, y, i, j] |> abs2
+basis = fit_basis(images[:, :, :, 1], ρs[:, :, 1])
+@tullio timage[x, y, i, image] := ρs[j, k, image] * basis[x, y, i, j] * conj(basis[x, y, i, k]) |> abs2
 ##
-index = 1
+index = 7
 astig = 1
 
 fig = Figure(resolution=(1000, 500))
