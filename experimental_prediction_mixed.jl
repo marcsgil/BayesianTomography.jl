@@ -1,24 +1,24 @@
 using BayesianTomography, HDF5, Tullio, CairoMakie, Optim, LinearAlgebra, Images, ProgressMeter
 
-function build_basis(xd, yd, xc, yc, order)
+function build_basis(xd, yd, xc, yc, order, angle)
     dbasis = stack([
         map(r -> hg([r[1], r[2]], (order - n, n)), Iterators.product(xd, yd))
         for n ∈ 0:order])
     cbasis = stack([
-        map(r -> hg([r[1], r[2]], (order - n, n)) * (-im)^n, Iterators.product(xc, yc))
+        map(r -> hg([r[1], r[2]], (order - n, n)) * cis(-angle * n), Iterators.product(xc, yc))
         for n ∈ 0:order])
     stack([dbasis, cbasis], dims=3)
 end
 
-function build_basis(x, y, order)
+function build_basis(x, y, order, angle)
     dbasis = stack([
         map(r -> hg([r[1], r[2]], (order - n, n)), Iterators.product(x, y))
         for n ∈ 0:order])
-    @tullio cbasis[x, y, i] := dbasis[x, y, i] * (-im)^i
+    @tullio cbasis[x, y, i] := dbasis[x, y, i] * cis(-angle * n)
     stack([dbasis, cbasis], dims=3)
 end
 
-function fit_grid(image, coeffs, is_astig)
+function fit_grid(image, coeffs, angle)
     function f(extrema)
         xmin = extrema[1]
         ymin = extrema[2]
@@ -30,8 +30,8 @@ function fit_grid(image, coeffs, is_astig)
             map(r -> complex(hg([r[1], r[2]], (order - n, n))), Iterators.product(x, y))
             for n ∈ 0:order])
 
-        if is_astig
-            @tullio basis[x, y, i] *= (-im)^i
+        for (n, element) ∈ enumerate(eachslice(basis, dims=3))
+            element .*= cis(-angle * n)
         end
 
         @tullio prediction[x, y] := coeffs[k, j] * basis[x, y, j] * conj(basis[x, y, k]) |> real
@@ -40,14 +40,14 @@ function fit_grid(image, coeffs, is_astig)
     optimize(f, [-4.0, -4.0, 4.0, 4.0])
 end
 
-function fit_basis(image, coeffs)
-    dresult = fit_grid(image[:, :, 1], coeffs, false)
-    cresult = fit_grid(image[:, :, 2], coeffs, true)
+function fit_basis(image, coeffs, angle)
+    dresult = fit_grid(image[:, :, 1], coeffs, 0)
+    cresult = fit_grid(image[:, :, 2], coeffs, angle)
     xd = LinRange(dresult.minimizer[1], dresult.minimizer[3], size(image, 1))
     yd = LinRange(dresult.minimizer[2], dresult.minimizer[4], size(image, 2))
     xc = LinRange(cresult.minimizer[1], cresult.minimizer[3], size(image, 1))
     yc = LinRange(cresult.minimizer[2], cresult.minimizer[4], size(image, 2))
-    build_basis(xd, yd, xc, yc, size(coeffs, 1) - 1)
+    build_basis(xd, yd, xc, yc, size(coeffs, 1) - 1, angle)
 end
 
 function treat_image(image; res=nothing, counts=nothing)
@@ -68,7 +68,7 @@ function treat_image(image; res=nothing, counts=nothing)
     end
 end
 
-order = 2
+order = 5
 file = h5open("ExperimentalData/mixed_dataset.h5")
 _images = read(file["images_order$order"])
 images = stack(imresize(image, 64, 64) for image ∈ eachslice(_images, dims=(3, 4)))
@@ -76,10 +76,10 @@ images = stack(imresize(image, 64, 64) for image ∈ eachslice(_images, dims=(3,
 close(file)
 ##
 r = LinRange(-3, 3, 512)
-basis = fit_basis(images[:, :, :, 1], ρs[:, :, 1])
+basis = fit_basis(images[:, :, :, 1], ρs[:, :, 1], π / 6)
 @tullio timage[x, y, i, image] := ρs[k, j, image] * basis[x, y, i, j] * conj(basis[x, y, i, k]) |> real
 ##
-index = 3
+index = 6
 astig = 2
 
 fig = Figure(resolution=(1000, 500))
@@ -91,10 +91,10 @@ heatmap!(ax1, images[:, :, astig, index])
 heatmap!(ax2, timage[:, :, astig, index])
 fig
 ##
-index = 2
+index = 1
 
-dresult = fit_grid(images[:, :, 1, index], ρs[:, :, 1], false)
-cresult = fit_grid(images[:, :, 2, index], ρs[:, :, 1], true)
+dresult = fit_grid(images[:, :, 1, index], ρs[:, :, 1], 0)
+cresult = fit_grid(images[:, :, 2, index], ρs[:, :, 1], π / 6)
 xd = LinRange(dresult.minimizer[1], dresult.minimizer[3], 65)
 yd = LinRange(dresult.minimizer[2], dresult.minimizer[4], 65)
 xc = LinRange(cresult.minimizer[1], cresult.minimizer[3], 65)
@@ -102,14 +102,13 @@ yc = LinRange(cresult.minimizer[2], cresult.minimizer[4], 65)
 
 direct_operators = assemble_position_operators(xd, yd, order)
 
-mode_converter = diagm([(-im)^k for k ∈ 0:order])
+mode_converter = diagm([cis(k * π / 6) for k ∈ 0:order])
 astig_operators = assemble_position_operators(xc, yc, order)
 astig_operators = unitary_transform(astig_operators, mode_converter)
 operators = compose_povm(direct_operators, astig_operators)
 ##
 fids = Vector{Float64}(undef, 100)
 ispossdef = Vector{Bool}(undef, 100)
-#mthd = MetropolisHastings(; nchains=8)
 mthd = LinearInversion(order + 1)
 
 function is_positive_semi_definite(A)

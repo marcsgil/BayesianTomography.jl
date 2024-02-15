@@ -63,3 +63,10 @@ function dict_representation(outcomes::Array{T,N}) where {T<:Int,N}
     end
     result
 end
+
+function project2density(ρ)
+    F = eigen(hermitianpart(ρ))
+    λs = [λ > 0 ? λ : 0 for λ ∈ real.(F.values)]
+    normalize!(λs, 1)
+    sum(λ * v * v' for (λ, v) ∈ zip(λs, eachcol(F.vectors)))
+end
