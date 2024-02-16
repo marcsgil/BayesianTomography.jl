@@ -17,10 +17,13 @@ function hermite_position_operator(r, order)
 end
 
 function assemble_position_operators(x, y, order)
-    operators = Matrix{Matrix{Float64}}(undef, length(x) - 1, length(y) - 1)
+    operators = Matrix{Matrix{Float64}}(undef, length(x), length(y))
 
-    for i ∈ 1:length(x)-1, j ∈ 1:length(y)-1
-        prob = IntegralProblem(hermite_position_operator, [x[i], y[j]], [x[i+1], y[j+1]], order)
+    X = LinRange(2x[1] - x[2], x[end], length(x) + 1)
+    Y = LinRange(2y[1] - y[2], y[end], length(y) + 1)
+
+    for i ∈ 1:length(X)-1, j ∈ 1:length(Y)-1
+        prob = IntegralProblem(hermite_position_operator, [X[i], Y[j]], [X[i+1], Y[j+1]], order)
         operators[i, j] = solve(prob, HCubatureJL()).u
     end
 

@@ -40,22 +40,25 @@ function triangular_indices(d)
     indices
 end
 
-struct LinearInversion{T,N}
-    basis::AbstractArray{Matrix{T},N}
-    α::Float64
-    function LinearInversion(d, basis=nothing; α=0)
-        if isnothing(basis)
-            I_d = Matrix{Float64}(I, d, d)
-            Js = triangular_indices(d)
-            As = [A_matrix(j, d) for j ∈ 1:d-1]
-            Bs = [B_matrix(J..., d) for J ∈ Js]
-            Cs = [C_matrix(J..., d) for J ∈ Js]
-            basis = vcat([I_d / √d], As, Bs, Cs)
-        end
+function get_basis(d)
+    I_d = Matrix{Float64}(I, d, d)
+    Js = triangular_indices(d)
+    As = [A_matrix(j, d) for j ∈ 1:d-1]
+    Bs = [B_matrix(J..., d) for J ∈ Js]
+    Cs = [C_matrix(J..., d) for J ∈ Js]
+    vcat([I_d / √d], As, Bs, Cs)
+end
 
-        T = complex(float(eltype(first(basis))))
-        N = ndims(basis)
-        new{T,N}(basis)
+struct LinearInversion{T1,T2}
+    pseudo_inv::Matrix{T1}
+    basis::Vector{Matrix{T2}}
+    function LinearInversion(povm)
+        d = size(first(povm), 1)
+        basis = get_basis(d)
+        A = [real(tr(E * Ω)) for E ∈ vec(povm), Ω ∈ vec(basis)]
+        pseudo_inv = pinv(A)
+        T = eltype(pseudo_inv)
+        new{T,complex(T)}(pseudo_inv, basis)
     end
 end
 
@@ -66,10 +69,8 @@ function project(ρ)
     sum(λ * v * v' for (λ, v) ∈ zip(λs, eachcol(F.vectors)))
 end
 
-function prediction(outcomes, povm, method::LinearInversion)
-    A = [real(tr(E * Ω)) for E ∈ vec(povm), Ω ∈ vec(method.basis)]
+function prediction(outcomes, method::LinearInversion)
     vec_outcomes = vec(outcomes)
-
-    xs = inv(A' * A) * A' * vec_outcomes
+    xs = method.pseudo_inv * vec_outcomes
     ρ = sum(x * Ω for (x, Ω) ∈ zip(xs, method.basis))
 end

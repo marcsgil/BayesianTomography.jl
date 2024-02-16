@@ -68,7 +68,7 @@ function treat_image(image; res=nothing, counts=nothing)
     end
 end
 
-order = 5
+order = 1
 file = h5open("ExperimentalData/mixed_dataset.h5")
 _images = read(file["images_order$order"])
 images = stack(imresize(image, 64, 64) for image ∈ eachslice(_images, dims=(3, 4)))
@@ -95,10 +95,10 @@ index = 1
 
 dresult = fit_grid(images[:, :, 1, index], ρs[:, :, 1], 0)
 cresult = fit_grid(images[:, :, 2, index], ρs[:, :, 1], π / 6)
-xd = LinRange(dresult.minimizer[1], dresult.minimizer[3], 65)
-yd = LinRange(dresult.minimizer[2], dresult.minimizer[4], 65)
-xc = LinRange(cresult.minimizer[1], cresult.minimizer[3], 65)
-yc = LinRange(cresult.minimizer[2], cresult.minimizer[4], 65)
+xd = LinRange(dresult.minimizer[1], dresult.minimizer[3], 64)
+yd = LinRange(dresult.minimizer[2], dresult.minimizer[4], 64)
+xc = LinRange(cresult.minimizer[1], cresult.minimizer[3], 64)
+yc = LinRange(cresult.minimizer[2], cresult.minimizer[4], 64)
 
 direct_operators = assemble_position_operators(xd, yd, order)
 
@@ -109,7 +109,7 @@ operators = compose_povm(direct_operators, astig_operators)
 ##
 fids = Vector{Float64}(undef, 100)
 ispossdef = Vector{Bool}(undef, 100)
-mthd = LinearInversion(order + 1)
+mthd = LinearInversion(operators)
 
 function is_positive_semi_definite(A)
     # Compute the eigenvalues of A
@@ -124,7 +124,7 @@ for n ∈ eachindex(fids)
     treated_image = treat_image(images[:, :, :, n])
     probs = normalize(treated_image, 1)
     #pred_angles = prediction(outcomes, operators, mthd)
-    σ = prediction(probs, operators, mthd)
+    σ = prediction(probs, mthd)
     #fids[n] = abs2(coeffs[:, n] ⋅ hurwitz_parametrization(pred_angles))
     sqrt_ρ = sqrt(ρs[:, :, n])
     fids[n] = abs2(tr(sqrt((sqrt_ρ * σ * sqrt_ρ))))
