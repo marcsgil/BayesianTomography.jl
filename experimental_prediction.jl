@@ -1,4 +1,4 @@
-using HDF5, CairoMakie, LinearAlgebra, Tullio, Optim, BayesianTomography, ProgressMeter
+using HDF5, CairoMakie, LinearAlgebra, Tullio, Optim, BayesianTomography, ProgressMeter, Images
 
 function loss(pars, gaussian)
     xmin = pars[1]
@@ -47,12 +47,29 @@ function fidelity(ρ, σ)
     sqrt_ρ = sqrt(ρ)
     abs2(tr(sqrt(sqrt_ρ * σ * sqrt_ρ)))
 end
+
+"""function Images.imresize(img::Array{T,3}, new_size...) where T
+    new_img = Array{T}(undef, new_size..., size(img, 3))
+    for (n,slice) ∈ enumerate(eachslice(img, dims=3))
+        new_img[:, :, n] = imresize(slice, new_size...)
+    end
+    new_img
+end
+
+function Images.imresize(img::Array{T,4}, new_size...) where T
+    new_img = Array{T}(undef, ..., size(img, 3), size(img, 4))
+    for (n, img) ∈ enumerate(eachslice(img, dims=4))
+        new_img[:, :, :, n] = imresize(img, new_size...)
+    end
+    new_img
+end"""
 ##
+L = 64
 order = 5
 file = h5open("ExperimentalData/mixed_dataset.h5")
-images = read(file["images_order$order"])
+images = imresize(read(file["images_order$order"]), L, L)
 ρs = read(file["labels_order$order"])
-calibration = read(file["calibration"])
+calibration = imresize(read(file["calibration"]), L, L)
 close(file)
 
 direct_x, direct_y, converted_x, converted_y, backgrounds = get_grid_and_bg(calibration)
@@ -61,8 +78,8 @@ remove_background!(images, backgrounds)
 basis = build_basis(direct_x, direct_y, converted_x, converted_y, order, π / 6)
 @tullio theo_images[x, y, m, n] := basis[x, y, m, j] * conj(basis[x, y, m, k]) * ρs[k, j, n] |> real
 ##
-index = 6
-astig = 1
+index = 14
+astig = 2
 
 fig = Figure(resolution=(1000, 500))
 ax1 = CairoMakie.Axis(fig[1, 1],
@@ -94,26 +111,21 @@ finish!(p)
 fids
 mean(fids)
 ##
-idx = 10
+idx = 4
 probs = normalize(images[:, :, :, idx], 1)
 σ = prediction(probs, mthd)
-tr(σ)
-σ = [1 0; 0 1] / 2
-ρ = ρs[:, :, idx]
-project2density(ρ)
-#fidelity(ρs[:, :, 1], σ)
-for ρ ∈ eachslice(ρs, dims=3)
-    @assert project2density(ρ) ≈ ρ
-end
+ρs[:, :, idx]
+mean(abs2.(σ - ρs[:, :, idx]))
 ##
+L = 400
 file = h5open("ExperimentalData/mixed_dataset.h5")
-calibration = read(file["calibration"])
+calibration = imresize(read(file["calibration"]), L, L)
 
 direct_x, direct_y, converted_x, converted_y, backgrounds = get_grid_and_bg(calibration)
 fids = Matrix{Float64}(undef, size(images, 4), 5)
 
 for order in 1:5
-    images = read(file["images_order$order"])
+    images = imresize(read(file["images_order$order"]), L, L)
     ρs = read(file["labels_order$order"])
     direct_operators = assemble_position_operators(direct_x, direct_y, order)
     mode_converter = diagm([cis(k * π / 6) for k ∈ 0:order])
@@ -125,7 +137,7 @@ for order in 1:5
     p = Progress(size(fids, 1))
     Threads.@threads for n ∈ axes(fids, 1)
         probs = normalize(images[:, :, :, n], 1)
-        σ = project2density(prediction(probs, mthd))
+        σ = prediction(probs, mthd)
         fids[n, order] = fidelity(ρs[:, :, n], σ)
         next!(p)
     end

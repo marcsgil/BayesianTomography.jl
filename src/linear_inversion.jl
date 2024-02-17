@@ -72,5 +72,5 @@ end
 function prediction(outcomes, method::LinearInversion)
     vec_outcomes = vec(outcomes)
     xs = method.pseudo_inv * vec_outcomes
-    ρ = sum(x * Ω for (x, Ω) ∈ zip(xs, method.basis))
+    ρ = sum(x * Ω for (x, Ω) ∈ zip(xs, method.basis)) |> project2density
 end
