@@ -48,7 +48,7 @@ function fidelity(ρ, σ)
     abs2(tr(sqrt(sqrt_ρ * σ * sqrt_ρ)))
 end
 ##
-order = 1
+order = 5
 file = h5open("ExperimentalData/mixed_dataset.h5")
 images = read(file["images_order$order"])
 ρs = read(file["labels_order$order"])
@@ -61,7 +61,7 @@ remove_background!(images, backgrounds)
 basis = build_basis(direct_x, direct_y, converted_x, converted_y, order, π / 6)
 @tullio theo_images[x, y, m, n] := basis[x, y, m, j] * conj(basis[x, y, m, k]) * ρs[k, j, n] |> real
 ##
-index = 15
+index = 6
 astig = 1
 
 fig = Figure(resolution=(1000, 500))
@@ -69,8 +69,8 @@ ax1 = CairoMakie.Axis(fig[1, 1],
     aspect=1)
 ax2 = CairoMakie.Axis(fig[1, 2],
     aspect=1)
-heatmap!(ax1, images[:, :, astig, index])
-heatmap!(ax2, theo_images[:, :, astig, index])
+heatmap!(ax1, images[:, :, astig, index], colormap=:jet)
+heatmap!(ax2, theo_images[:, :, astig, index], colormap=:jet)
 fig
 ##
 direct_operators = assemble_position_operators(direct_x, direct_y, order)
@@ -83,9 +83,9 @@ fids = Vector{Float64}(undef, size(images, 4))
 mthd = LinearInversion(operators)
 ##
 p = Progress(length(fids));
-for n ∈ eachindex(fids)
+Threads.@threads for n ∈ eachindex(fids)
     probs = normalize(images[:, :, :, n], 1)
-    σ = prediction(probs, mthd)
+    σ = project2density(prediction(probs, mthd))
     fids[n] = fidelity(ρs[:, :, n], σ)
     next!(p)
 end
@@ -94,7 +94,44 @@ finish!(p)
 fids
 mean(fids)
 ##
-
-probs = normalize(images[:, :, :, 1], 1)
+idx = 10
+probs = normalize(images[:, :, :, idx], 1)
 σ = prediction(probs, mthd)
-fidelity(ρs[:, :, 1], σ)
+tr(σ)
+σ = [1 0; 0 1] / 2
+ρ = ρs[:, :, idx]
+project2density(ρ)
+#fidelity(ρs[:, :, 1], σ)
+for ρ ∈ eachslice(ρs, dims=3)
+    @assert project2density(ρ) ≈ ρ
+end
+##
+file = h5open("ExperimentalData/mixed_dataset.h5")
+calibration = read(file["calibration"])
+
+direct_x, direct_y, converted_x, converted_y, backgrounds = get_grid_and_bg(calibration)
+fids = Matrix{Float64}(undef, size(images, 4), 5)
+
+for order in 1:5
+    images = read(file["images_order$order"])
+    ρs = read(file["labels_order$order"])
+    direct_operators = assemble_position_operators(direct_x, direct_y, order)
+    mode_converter = diagm([cis(k * π / 6) for k ∈ 0:order])
+    astig_operators = assemble_position_operators(converted_x, converted_y, order)
+    astig_operators = unitary_transform(astig_operators, mode_converter)
+    operators = compose_povm(direct_operators, astig_operators)
+
+    mthd = LinearInversion(operators)
+    p = Progress(size(fids, 1))
+    Threads.@threads for n ∈ axes(fids, 1)
+        probs = normalize(images[:, :, :, n], 1)
+        σ = project2density(prediction(probs, mthd))
+        fids[n, order] = fidelity(ρs[:, :, n], σ)
+        next!(p)
+    end
+    finish!(p)
+end
+close(file)
+##
+fids
+mean(fids, dims=1)
