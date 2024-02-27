@@ -1,5 +1,3 @@
-using LinearAlgebra
-
 function A_matrix(j, d)
     @assert j ≤ d - 1
     diag = zeros(d)

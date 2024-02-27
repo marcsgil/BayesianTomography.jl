@@ -5,6 +5,7 @@ using LogDensityProblems, LogDensityProblemsAD, ForwardDiff, MCMCChains, Abstrac
 using AdvancedHMC, AdvancedMH
 using Optim, LineSearches
 using Parameters, UnPack
+using ClassicalOrthogonalPolynomials, Integrals
 
 include("utils.jl")
 export simulate_outcomes, array_representation, dict_representation, project2density
@@ -12,7 +13,6 @@ export simulate_outcomes, array_representation, dict_representation, project2den
 include("augmentation.jl")
 export compose_povm, unitary_transform, augment_povm
 
-using ClassicalOrthogonalPolynomials, Integrals
 include("position_operators.jl")
 export assemble_position_operators, hg_product, hg, hermite_position_operator
 
@@ -26,5 +26,8 @@ export MaximumLikelihood, MetropolisHastings, HamiltonianMC
 
 include("linear_inversion.jl")
 export LinearInversion, prediction
+
+include("representations.jl")
+export dict2array, array2dict, history2array, history2dict
 
 end
