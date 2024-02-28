@@ -22,6 +22,8 @@ function hurwitz_parametrization(angles)
     ψ
 end
 
+
+
 function f(operator, nobs, ψ)
     nobs * log(real(dot(ψ, operator, ψ)))
 end
