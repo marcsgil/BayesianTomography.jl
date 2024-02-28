@@ -1,4 +1,4 @@
-function hurwitz_parametrization(angles)
+"""function hurwitz_parametrization(angles)
     n = length(angles) ÷ 2
     T = complex(float(eltype(angles)))
     d = n + 1
@@ -8,6 +8,7 @@ function hurwitz_parametrization(angles)
 
     for j in eachindex(ψ)
         ψ[j] = prod(k -> sin(θ[k] / 2), (d-j+1):d-1, init=1)
+
         if j != d
             ψ[j] *= cos(θ[d-j] / 2)
         end
@@ -15,6 +16,31 @@ function hurwitz_parametrization(angles)
             ψ[j] *= cis(ϕ[d-j+1])
         end
     end
+    ψ
+end"""
+
+function hurwitz_parametrization2(angles)
+    n = length(angles) ÷ 2
+    T = complex(float(eltype(angles)))
+    d = n + 1
+    ψ = Vector{T}(undef, d)
+    θ = @view angles[1:n]
+    ϕ = @view angles[n+1:2n]
+
+    ψ[1] = 1
+
+    @inbounds for k ∈ 1:n
+        ψ[k+1] = sin(θ[k] / 2) * ψ[k]
+    end
+
+    @inbounds for k ∈ 1:n
+        ψ[k] *= cos(θ[k] / 2)
+    end
+
+    @inbounds for k ∈ 1:n
+        ψ[k+1] *= cis(ϕ[k])
+    end
+
     ψ
 end
 
