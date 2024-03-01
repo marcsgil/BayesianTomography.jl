@@ -53,7 +53,7 @@ struct LinearInversion{T1,T2}
     function LinearInversion(povm)
         d = size(first(povm), 1)
         basis = get_basis(d)
-        A = [real(tr(E * Ω)) for E ∈ vec(povm), Ω ∈ vec(basis)]
+        A = [real(E ⋅ Ω) for E ∈ vec(povm), Ω ∈ vec(basis)]
         pseudo_inv = pinv(A)
         T = eltype(pseudo_inv)
         new{T,complex(T)}(pseudo_inv, basis)
