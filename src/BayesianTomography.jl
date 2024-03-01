@@ -11,10 +11,10 @@ include("utils.jl")
 export simulate_outcomes, array_representation, dict_representation, project2density
 
 include("augmentation.jl")
-export compose_povm, unitary_transform, augment_povm
+export compose_povm, unitary_transform!, augment_povm
 
 include("position_operators.jl")
-export assemble_position_operators, hg_product, hg, hermite_position_operator
+export assemble_position_operators
 
 include("samplers.jl")
 export sample_haar_unitary, sample_haar_vector
