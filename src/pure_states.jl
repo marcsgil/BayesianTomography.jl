@@ -19,18 +19,17 @@ function hurwitz_parametrization(angles)
         ψ[k+1] *= cis(ϕ[k])
     end
 
+    #SVector{n + 1}(ψ)
     ψ
 end
 
-
-
-function f(operator, nobs, ψ)
-    nobs * log(real(dot(ψ, operator, ψ)))
+function f(operator, ψ)
+    log(real(dot(ψ, operator, ψ)))
 end
 
 function log_likellyhood(outcomes, operators, angles)
     ψ = hurwitz_parametrization(angles)
-    sum(pair -> f(operators[pair.first], pair.second, ψ), pairs(outcomes))
+    sum(pair -> pair.second * f(operators[pair.first], ψ), pairs(outcomes))
 end
 
 function log_prior(angles)
