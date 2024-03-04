@@ -38,7 +38,23 @@ function simulate_outcomes(probs, N; atol=1e-3)
     outcomes
 end
 
+function simulate_outcomes!(probs, N; atol=1e-3)
+    @assert minimum(probs) ≥ -atol "The probabilities must be non-negative"
+    S = sum(probs)
+    @assert isapprox(S, 1; atol) "The sum of the probabilities is not 1, but $S"
 
+    dist = Categorical(map(x -> x > 0 ? x : 0, normalize(vec(probs), 1)))
+    samples = rand(dist, N)
+
+    Threads.@threads for n in eachindex(probs)
+        probs[n] = count(x -> x == n, samples)
+    end
+end
+
+function fidelity(ρ::AbstractMatrix, σ::AbstractMatrix)
+    sqrt_ρ = sqrt(ρ)
+    abs2(tr(sqrt(sqrt_ρ * σ * sqrt_ρ)))
+end
 
 function project2density(ρ)
     F = eigen(hermitianpart(ρ))

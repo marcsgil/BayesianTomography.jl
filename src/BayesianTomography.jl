@@ -8,7 +8,7 @@ using Parameters, UnPack
 using ClassicalOrthogonalPolynomials, Integrals, StaticArrays
 
 include("utils.jl")
-export simulate_outcomes, array_representation, dict_representation, project2density
+export simulate_outcomes, array_representation, dict_representation, project2density, fidelity, simulate_outcomes!
 
 include("augmentation.jl")
 export compose_povm, unitary_transform!, augment_povm
@@ -25,7 +25,7 @@ export hurwitz_parametrization, f, g, log_likellyhood, log_prior,
 export MaximumLikelihood, MetropolisHastings, HamiltonianMC
 
 include("linear_inversion.jl")
-export LinearInversion, prediction
+export LinearInversion, prediction, get_hermitian_basis
 
 include("representations.jl")
 export dict2array, array2dict, history2array, history2dict

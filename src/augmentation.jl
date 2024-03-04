@@ -4,7 +4,7 @@ end
 
 function unitary_transform!(operators, unitary)
     for n ∈ eachindex(operators)
-        operators[n] = unitary * operators[n] * unitary'
+        operators[n] = unitary' * operators[n] * unitary
     end
 end
 
