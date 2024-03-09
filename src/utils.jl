@@ -1,19 +1,3 @@
-function angular_transform!(angles)
-    n = length(angles) ÷ 2
-    @. angles[1:n] = acos(cos(@view angles[1:n]))
-    @. angles[n+1:end] = mod2pi(@view angles[n+1:end])
-
-    return nothing
-end
-
-function random_angles(d)
-    θs = rand(Cosine(π / 2, π / 2), d ÷ 2)
-    ϕs = rand(Uniform(0, 2π), d ÷ 2)
-    vcat(θs, ϕs)
-end
-
-circular_mean(ϕs; dims=1:ndims(ϕs)) = mod2pi.(atan.(sum(sin, ϕs; dims), sum(cos, ϕs; dims)))
-
 function simulate_outcomes(ψ::Vector{T}, operators, N; atol=1e-3) where {T}
     probs = [real(dot(ψ, E, ψ)) for E in operators]
     simulate_outcomes(probs, N; atol)
@@ -62,3 +46,24 @@ function project2density(ρ)
     normalize!(λs, 1)
     sum(λ * v * v' for (λ, v) ∈ zip(λs, eachcol(F.vectors)))
 end
+
+function project2pure(ρ)
+    F = eigen(hermitianpart(ρ))
+    F.vectors[:, end] # the last eigenvector is the one with the largest eigenvalue
+end
+
+function linear_combination(xs, basis)
+    ρ = similar(first(basis))
+    linear_combination!(ρ, xs, basis)
+    ρ
+end
+
+function linear_combination!(ρ, xs, basis)
+    @tullio ρ[i, j] = basis[k][i, j] * xs[k]
+end
+
+function LinearAlgebra.isposdef!(ρ, xs, basis)
+    linear_combination!(ρ, xs, basis)
+    isposdef!(ρ)
+end
+
