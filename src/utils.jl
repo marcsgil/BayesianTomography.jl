@@ -59,7 +59,8 @@ function linear_combination(xs, basis)
 end
 
 function linear_combination!(ρ, xs, basis)
-    @tullio ρ[i, j] = basis[k][i, j] * xs[k]
+    _xs = Vector(xs)
+    @tullio ρ[i, j] = basis[k][i, j] * _xs[k]
 end
 
 function LinearAlgebra.isposdef!(ρ, xs, basis)
