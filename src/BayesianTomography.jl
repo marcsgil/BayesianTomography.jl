@@ -1,6 +1,7 @@
 module BayesianTomography
 
-using Distributions, Integrals, OnlineStats, Tullio, LinearAlgebra
+using Distributions, Integrals, OnlineStats, Tullio, LinearAlgebra, Random
+import LinearAlgebra: isposdef!, isposdef
 
 include("hermitian_basis.jl")
 export get_hermitian_basis, real_representation

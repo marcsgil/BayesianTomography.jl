@@ -1,5 +1,5 @@
 function assemble_position_operators(xs, ys, basis)
-    operators = Matrix{Matrix{ComplexF64}}(undef, length(xs), length(ys))
+    operators = Matrix{Matrix{ComplexF32}}(undef, length(xs), length(ys))
 
     Δx = (xs[2] - xs[1]) / 2
     Δy = (ys[2] - ys[1]) / 2
@@ -10,7 +10,7 @@ function assemble_position_operators(xs, ys, basis)
         end
     end
 
-    prototype = zeros(ComplexF64, length(basis), length(basis))
+    prototype = zeros(ComplexF32, length(basis), length(basis))
     f = IntegralFunction(integrand!, prototype)
 
     Threads.@threads for n ∈ eachindex(ys)

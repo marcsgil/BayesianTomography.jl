@@ -53,17 +53,16 @@ function project2pure(ρ)
 end
 
 function linear_combination(xs, basis)
-    ρ = similar(first(basis))
+    ρ = Array{eltype(basis)}(undef, size(basis, 1), size(basis, 2))
     linear_combination!(ρ, xs, basis)
     ρ
 end
 
 function linear_combination!(ρ, xs, basis)
-    _xs = Vector(xs)
-    @tullio ρ[i, j] = basis[k][i, j] * _xs[k]
+    @tullio ρ[i, j] = basis[i, j, k] * xs[k]
 end
 
-function LinearAlgebra.isposdef!(ρ, xs, basis)
+function isposdef!(ρ, xs, basis)
     linear_combination!(ρ, xs, basis)
     isposdef!(ρ)
 end

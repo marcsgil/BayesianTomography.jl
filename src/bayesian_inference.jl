@@ -4,11 +4,13 @@ function log_likelihood(outcomes, operators, xs, ancilla)
     outcomes ⋅ ancilla
 end
 
-function update_x!(x, x₀, β, L)
-    @. x = x₀
-    for n ∈ 2:L
-        x[n] += randn() * β
-    end
+function update_x!(x, x₀, β)
+    x[begin] = zero(eltype(x))
+    _x = @view x[begin+1:end]
+    randn!(_x,)
+    map!(x -> x * β, _x, _x)
+    map!(+, x, x, x₀)
+    nothing
 end
 
 function update_x₀!(x₀, x, y₀, f, dist)
@@ -45,7 +47,7 @@ function metropolisHastings(f, x₀, nsamples, nwarm=0; β=1e-3)
     ρ = Matrix{complex(T)}(undef, d, d)
 
     for _ ∈ 1:nwarm
-        update_x!(x, x₀, β, L)
+        update_x!(x, x₀, β)
 
         if isposdef!(ρ, x, basis)
             y₀ = update_x₀!(x₀, x, y₀, f, dist)
@@ -54,7 +56,7 @@ function metropolisHastings(f, x₀, nsamples, nwarm=0; β=1e-3)
 
     stat = CovMatrix(T, L)
     for _ ∈ 1:nsamples
-        update_x!(x, x₀, β, L)
+        update_x!(x, x₀, β)
 
         if isposdef!(ρ, x, basis)
             y₀ = update_x₀!(x₀, x, y₀, f, dist, stat)
@@ -78,7 +80,7 @@ end
 
 function efective_povm(povm, observations)
     new_povm = Matrix{eltype(povm)}(undef, length(observations), size(povm, 2))
-    new_obs = Vector{Int}(undef, length(observations))
+    new_obs = Vector{Float32}(undef, length(observations))
 
     for (n, pair) ∈ enumerate(observations)
         new_povm[n, :] = povm[pair.first, :]
@@ -89,17 +91,18 @@ function efective_povm(povm, observations)
 end
 
 function prediction(outcomes, method::BayesianInference)
-    povm, flat_outcomes = efective_povm(method.povm |> vec |> stack |> transpose, outcomes)
+    reduced_povm, reduced_outcomes = efective_povm(method.povm |> vec |> stack |> transpose, outcomes)
 
-    d = Int(√length(first(method.povm)))
-    x₀ = vcat(1 / √d, zeros(d^2 - 1))
+    d = Int(√size(reduced_povm, 2))
+    x₀ = zeros(Float32, d^2)
+    x₀[begin] = 1 / √d
 
     nt = Threads.nthreads()
     stats = fill(CovMatrix(eltype(x₀), length(x₀)), nt)
 
     Threads.@threads for n ∈ eachindex(stats)
-        ancilla = similar(flat_outcomes, Float64)
-        posterior(x) = log_likelihood(flat_outcomes, povm, x, ancilla)
+        ancilla = similar(reduced_outcomes)
+        posterior(x) = log_likelihood(reduced_outcomes, reduced_povm, x, ancilla)
         stats[n] = metropolisHastings(posterior, x₀, method.nsamples ÷ nt, method.nwarm)
     end
 

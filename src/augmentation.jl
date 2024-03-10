@@ -1,4 +1,4 @@
-function compose_povm(args...; probabilities=fill(1 / length(args), length(args)))
+function compose_povm(args...; probabilities=fill(Float32(1 / length(args)), length(args)))
     stack(probabilities[n] * arg for (n, arg) in enumerate(args))
 end
 
