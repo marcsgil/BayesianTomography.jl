@@ -67,14 +67,12 @@ function metropolisHastings(f, x₀, nsamples, nwarm=0; β=1e-3)
 end
 
 struct BayesianInference{T<:Real,N}
-    povm::Array{Vector{T},N}
+    povm::Matrix{T}
     nsamples::Int
     nwarm::Int
     function BayesianInference(povm::AbstractArray{Matrix{T2},N}, nsamples, nwarm) where {T2,N}
         T1 = real(T2)
-        d = size(first(povm), 1)
-        basis = get_hermitian_basis(d)
-        new{T1,N}([real_representation(Ω, basis) for Ω ∈ povm], nsamples, nwarm)
+        new{T1,N}(stack(real_representation, povm, dims=1), nsamples, nwarm)
     end
 end
 
@@ -91,7 +89,7 @@ function efective_povm(povm, observations)
 end
 
 function prediction(outcomes, method::BayesianInference)
-    reduced_povm, reduced_outcomes = efective_povm(method.povm |> vec |> stack |> transpose, outcomes)
+    reduced_povm, reduced_outcomes = efective_povm(method.povm, outcomes)
 
     d = Int(√size(reduced_povm, 2))
     x₀ = zeros(Float32, d^2)
