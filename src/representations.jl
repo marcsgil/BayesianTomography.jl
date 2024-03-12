@@ -6,7 +6,7 @@ function dict2array(dict::Dict{T1,T2}, size) where {T1<:Integer,T2<:Integer}
     result
 end
 
-function array2dict(array::Array{T,N}) where {T<:Integer,N}
+function array2dict(array::Array{T,N}) where {T,N}
     result = Dict{Int,T}()
     for (outcome, value) ∈ enumerate(array)
         if value != 0

@@ -4,8 +4,7 @@ struct LinearInversion{T1,T2}
     function LinearInversion(povm)
         d = size(first(povm), 1)
         basis = get_hermitian_basis(d)
-        A = stack(F -> real_representation(F, basis), povm, dims=1)
-        pseudo_inv = pinv(A)
+        pseudo_inv = stack(F -> real_representation(F, basis), povm, dims=1) |> pinv
         T = eltype(pseudo_inv)
         new{T,complex(T)}(pseudo_inv, basis)
     end
