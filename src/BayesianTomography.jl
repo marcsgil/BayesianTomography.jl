@@ -4,7 +4,7 @@ using Distributions, Integrals, OnlineStats, Tullio, LinearAlgebra, Random
 import LinearAlgebra: isposdef!, isposdef
 
 include("hermitian_basis.jl")
-export get_hermitian_basis, real_representation
+export gell_man_matrices, basis_decomposition, Z_matrix, X_matrix, Y_matrix, triangular_indices
 
 include("bayesian_inference.jl")
 include("linear_inversion.jl")

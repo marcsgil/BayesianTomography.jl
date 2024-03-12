@@ -1,42 +1,8 @@
-function Z_matrix(j, d)
-    @assert j ≤ d
+"""
+    triangular_indices(d)
 
-    if j == 1
-        result = Matrix{ComplexF32}(I, d, d)
-    else
-        diag = zeros(ComplexF32, d)
-        for k ∈ 1:j-1
-            diag[k] = 1
-        end
-        diag[j] = -j + 1
-        result = diagm(diag)
-    end
-    normalize!(result)
-    result
-end
-
-function W_matrix(j, d)
-    result = zeros(ComplexF32, d, d)
-    result[j, j] = 1
-    result
-end
-
-function X_matrix(j, k, d)
-    result = zeros(ComplexF32, d, d)
-    result[j, k] = 1
-    result[k, j] = 1
-    normalize!(result)
-    result
-end
-
-function Y_matrix(j, k, d)
-    result = zeros(ComplexF32, d, d)
-    result[j, k] = im
-    result[k, j] = -im
-    normalize!(result)
-    result
-end
-
+Generate a vector of tuples representing the indices of the lower triangular part of a square matrix of dimension `d`.
+"""
 function triangular_indices(d)
     indices = Vector{Tuple{Int,Int}}(undef, d * (d - 1) ÷ 2)
     counter = 0
@@ -49,21 +15,162 @@ function triangular_indices(d)
     indices
 end
 
-function get_hermitian_basis(d; mode=:Z)
-    @assert mode ∈ (:Z, :W)
+"""
+X_matrix(j, k, d, T=ComplexF32)
 
-    if mode == :Z
-        diagonal = [Z_matrix(j, d) for j ∈ 1:d]
-    elseif mode == :W
-        diagonal = [W_matrix(j, d) for j ∈ 1:d]
-    end
+Compute the real off diagonal matrix of the generalized Gell-Mann matrices in dimension `d`.
 
-    Js = triangular_indices(d)
-    Xs = [X_matrix(J..., d) for J ∈ Js]
-    Ys = [Y_matrix(J..., d) for J ∈ Js]
-    vcat(diagonal, Xs, Ys) |> stack
+The type of the matrix elements is `T`, which defaults to `ComplexF32`.
+The only non-zero elements are `X[j, k] = 1` and `X[k, j] = 1`.
+The matrices are normalized to have unit Hilbert-Schmidt norm.
+
+# Examples
+```jldoctest
+julia> X_matrix(1,2,2)
+2×2 Matrix{ComplexF32}:
+      0.0+0.0im  0.707107+0.0im
+ 0.707107+0.0im       0.0+0.0im
+```
+"""
+function X_matrix(j, k, d, T=ComplexF32)
+    result = zeros(T, d, d)
+    result[j, k] = 1
+    result[k, j] = 1
+    normalize!(result)
+    result
 end
 
-function real_representation(Ω, basis=get_hermitian_basis(size(Ω, 1)))
-    [real(Ω ⋅ Ω′) for Ω′ ∈ eachslice(basis, dims=3)]
+"""
+X_matrix(j, k, d, T=ComplexF32)
+
+Compute the imaginary off diagonal matrix of the generalized Gell-Mann matrices in dimension `d`.
+
+The type of the matrix elements is `T`, which defaults to `ComplexF32`.
+The only non-zero elements are `Y[j, k] = im` and `Y[k, j] = -im`.
+The matrices are normalized to have unit Hilbert-Schmidt norm.
+
+# Examples
+```jldoctest
+julia> Y_matrix(1,2,2)
+2×2 Matrix{ComplexF32}:
+ 0.0+0.0im       0.0+0.707107im
+ 0.0-0.707107im  0.0+0.0im
+```
+"""
+function Y_matrix(j, k, d, T=ComplexF32)
+    result = zeros(T, d, d)
+    result[j, k] = im
+    result[k, j] = -im
+    normalize!(result)
+    result
+end
+
+"""
+    Z_matrix(j, d, T=ComplexF32)
+
+Compute the `j`'th diagonal matrix of the generalized Gell-Mann matrices in dimension `d`.
+
+The type of the matrix elements is `T`, which defaults to `ComplexF32`.
+The matrices are normalized to have unit Hilbert-Schmidt norm.
+The identity matrix is returned when `j == 0`.
+
+# Examples
+```jldoctest
+julia> Z_matrix(0, 3)
+3×3 Matrix{ComplexF32}:
+ 0.57735+0.0im      0.0+0.0im      0.0+0.0im
+     0.0+0.0im  0.57735+0.0im      0.0+0.0im
+     0.0+0.0im      0.0+0.0im  0.57735+0.0im
+
+julia> Z_matrix(1, 3)
+3×3 Matrix{ComplexF32}:
+ 0.707107+0.0im        0.0+0.0im  0.0+0.0im
+      0.0+0.0im  -0.707107+0.0im  0.0+0.0im
+      0.0+0.0im        0.0+0.0im  0.0+0.0im
+
+julia> Z_matrix(2, 3)
+3×3 Matrix{ComplexF32}:
+ 0.408248+0.0im       0.0+0.0im        0.0+0.0im
+      0.0+0.0im  0.408248+0.0im        0.0+0.0im
+      0.0+0.0im       0.0+0.0im  -0.816497+0.0im
+```
+"""
+function Z_matrix(j, d, T=ComplexF32)
+    @assert -1 ≤ j ≤ d - 1
+
+    if j == 0
+        result = Matrix{T}(I, d, d)
+    else
+        diag = zeros(ComplexF32, d)
+        for k ∈ 1:j
+            diag[k] = 1
+        end
+        diag[j+1] = -j
+        result = diagm(diag)
+    end
+    normalize!(result)
+    result
+end
+
+"""
+    gell_man_matrices(d; include_identity=true)
+
+Generate a set of Gell-Mann matrices of dimension `d`. 
+
+The Gell-Mann matrices are a set of `d^2 - 1` linearly independent, traceless, 
+Hermitian matrices that, when augmented with the identity,
+form a basis for the space of `d × d` hermitian matrices.
+
+The matrix order is real off-diagonal ([`X_matrix`](@ref)), 
+imaginary off-diagonal ([`Y_matrix`](@ref)) and diagonal ([`Z_matrix`](@ref)).
+The off-diagonal matrices follow the order given by [`triangular_indices`](@ref).
+
+# Arguments
+- `d`: The dimension of the Gell-Mann matrices.
+- `include_identity`: A boolean flag indicating whether to include the identity matrix in the set. If this is `true`, the identity is the first element of the basis
+
+# Returns
+- A 3D array of Gell-Mann matrices. The last dimension is the index of the matrix in the basis.
+
+# Examples
+```jldoctet
+gell_man_matrices(2,include_identity=false)
+2×2×3 Array{ComplexF32, 3}:
+[:, :, 1] =
+      0.0+0.0im  0.707107+0.0im
+ 0.707107+0.0im       0.0+0.0im
+
+[:, :, 2] =
+ 0.0+0.0im       0.0-0.707107im
+ 0.0+0.707107im  0.0+0.0im
+
+[:, :, 3] =
+ 0.707107+0.0im        0.0+0.0im
+      0.0+0.0im  -0.707107+0.0im
+```
+"""
+function gell_man_matrices(d; include_identity=true)
+    Js = triangular_indices(d)
+    Xs = (X_matrix(J..., d) for J ∈ Js)
+    Ys = (Y_matrix(J..., d) for J ∈ Js)
+    Zs = (Z_matrix(j, d) for j ∈ 1:d-1)
+    if include_identity
+        return stack((Z_matrix(0, d), Xs..., Ys..., Zs...), dims=3)
+    else
+        return stack((Xs..., Ys..., Zs...), dims=3)
+    end
+end
+
+"""
+    basis_decomposition(Ω, basis=gell_man_matrices(d))
+
+Decompose the array `Ω` in the provided orthonormal basis.
+
+If no basis is provided, the Gell-Mann matrices of appropriate dimension are used.
+
+If `Ω` has dimension d, then `basis` should be an array with dimesnion `d+1` with the last 
+dimension indexing the basis elements.
+"""
+function basis_decomposition(Ω, basis=gell_man_matrices(d))
+    [real(Ω ⋅ Ω′) for Ω′ ∈ eachslice(basis, dims=ndims(basis))]
 end

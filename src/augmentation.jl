@@ -1,5 +1,5 @@
-function compose_povm(args...; probabilities=fill(Float32(1 / length(args)), length(args)))
-    stack(probabilities[n] * arg for (n, arg) in enumerate(args))
+function compose_povm(povms...; probabilities=fill(Float32(1 / length(povms)), length(povms)))
+    stack(probabilities[n] * povm for (n, povm) in enumerate(povms))
 end
 
 function unitary_transform!(operators, unitary)

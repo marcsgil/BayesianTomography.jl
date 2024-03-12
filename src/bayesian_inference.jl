@@ -76,18 +76,6 @@ struct BayesianInference{T<:Real,N}
     end
 end
 
-function efective_povm(povm, observations)
-    new_povm = Matrix{eltype(povm)}(undef, length(observations), size(povm, 2))
-    new_obs = Vector{Float32}(undef, length(observations))
-
-    for (n, pair) ∈ enumerate(observations)
-        new_povm[n, :] = povm[pair.first, :]
-        new_obs[n] = pair.second
-    end
-
-    new_povm, new_obs
-end
-
 function prediction(outcomes, method::BayesianInference)
     reduced_povm, reduced_outcomes = efective_povm(method.povm, outcomes)
 

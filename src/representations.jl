@@ -31,3 +31,15 @@ function history2dict(history::AbstractArray{T,N}) where {T<:Integer,N}
     end
     result
 end
+
+function efective_povm(povm, observations)
+    new_povm = Matrix{eltype(povm)}(undef, length(observations), size(povm, 2))
+    new_obs = Vector{Float32}(undef, length(observations))
+
+    for (n, pair) ∈ enumerate(observations)
+        new_povm[n, :] = povm[pair.first, :]
+        new_obs[n] = pair.second
+    end
+
+    new_povm, new_obs
+end
