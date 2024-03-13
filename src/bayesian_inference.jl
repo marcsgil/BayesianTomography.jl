@@ -38,7 +38,7 @@ function metropolisHastings(f, x₀, nsamples, nwarm=0; β=1e-3)
     dist = Exponential()
     L = length(x₀)
     d = Int(√L)
-    basis = get_hermitian_basis(d)
+    basis = gell_man_matrices(d)
 
     y₀ = f(x₀)
     x = similar(x₀)
@@ -72,12 +72,26 @@ struct BayesianInference{T<:Real,N}
     nwarm::Int
     function BayesianInference(povm::AbstractArray{Matrix{T2},N}, nsamples, nwarm) where {T2,N}
         T1 = real(T2)
-        new{T1,N}(stack(real_representation, povm, dims=1), nsamples, nwarm)
+        basis = gell_man_matrices(size(first(povm), 1))
+        f(F) = real_orthogonal_projection(F, basis)
+        new{T1,N}(stack(f, povm, dims=1), nsamples, nwarm)
     end
 end
 
+function reduced_representation(povm, outcomes)
+    reduced_outcomes = reduced_representation(outcomes)
+    reduced_povm = similar(povm, size(reduced_outcomes, 2), size(povm, 2))
+
+    for n ∈ axes(reduced_povm, 2), m ∈ axes(reduced_povm, 1)
+        reduced_povm[m, n] = povm[reduced_outcomes[1, m], n]
+    end
+
+    reduced_povm, view(reduced_outcomes, 2, :)
+end
+
+
 function prediction(outcomes, method::BayesianInference)
-    reduced_povm, reduced_outcomes = efective_povm(method.povm, outcomes)
+    reduced_povm, reduced_outcomes = reduced_representation(method.povm, outcomes)
 
     d = Int(√size(reduced_povm, 2))
     x₀ = zeros(Float32, d^2)
@@ -87,7 +101,7 @@ function prediction(outcomes, method::BayesianInference)
     stats = fill(CovMatrix(eltype(x₀), length(x₀)), nt)
 
     Threads.@threads for n ∈ eachindex(stats)
-        ancilla = similar(reduced_outcomes)
+        ancilla = similar(reduced_outcomes, float(eltype(reduced_outcomes)))
         posterior(x) = log_likelihood(reduced_outcomes, reduced_povm, x, ancilla)
         stats[n] = metropolisHastings(posterior, x₀, method.nsamples ÷ nt, method.nwarm)
     end
@@ -96,5 +110,5 @@ function prediction(outcomes, method::BayesianInference)
         merge!(stats[1], stats[n])
     end
 
-    return stats[1]
+    return linear_combination(mean(stats[1]), gell_man_matrices(d)), stats[1]
 end

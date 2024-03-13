@@ -1,10 +1,10 @@
-function simulate_outcomes(ψ::Vector{T}, operators, N; atol=1e-3) where {T}
-    probs = [real(dot(ψ, E, ψ)) for E in operators]
+function simulate_outcomes(ψ::Vector{T}, povm, N; atol=1e-3) where {T}
+    probs = [real(dot(ψ, E, ψ)) for E in povm]
     simulate_outcomes(probs, N; atol)
 end
 
-function simulate_outcomes(ρ::Matrix{T}, operators, N; atol=1e-3) where {T}
-    probs = [real(ρ ⋅ E) for E in operators]
+function simulate_outcomes(ρ::Matrix{T}, povm, N; atol=1e-3) where {T}
+    probs = [real(ρ ⋅ E) for E in povm]
     simulate_outcomes(probs, N; atol)
 end
 
@@ -13,13 +13,8 @@ function simulate_outcomes(probs, N; atol=1e-3)
     S = sum(probs)
     @assert isapprox(S, 1; atol) "The sum of the probabilities is not 1, but $S"
     dist = Categorical(map(x -> x > 0 ? x : 0, normalize(vec(probs), 1)))
-    samples = rand(dist, N)
 
-    outcomes = Dict{Int,Int}()
-    for outcome ∈ samples
-        outcomes[outcome] = get(outcomes, outcome, 0) + 1
-    end
-    outcomes
+    complete_representation(History(rand(dist, N)), length(probs))
 end
 
 function simulate_outcomes!(probs, N; atol=1e-3)
@@ -40,6 +35,8 @@ function fidelity(ρ::AbstractMatrix, σ::AbstractMatrix)
     abs2(tr(sqrt(sqrt_ρ * σ * sqrt_ρ)))
 end
 
+fidelity(ψ::AbstractVector, φ::AbstractVector) = abs2(ψ ⋅ φ)
+
 function project2density(ρ)
     F = eigen(hermitianpart(ρ))
     λs = [λ > 0 ? λ : 0 for λ ∈ real.(F.values)]
@@ -52,6 +49,16 @@ function project2pure(ρ)
     F.vectors[:, end] # the last eigenvector is the one with the largest eigenvalue
 end
 
+function orthogonal_projection(ρ, basis)
+    @assert ndims(ρ) + 1 == ndims(basis)
+    [ρ ⋅ Ω / (Ω ⋅ Ω) for Ω ∈ eachslice(basis, dims=ndims(basis))]
+end
+
+function real_orthogonal_projection(ρ, basis)
+    @assert ndims(ρ) + 1 == ndims(basis)
+    [real(ρ ⋅ Ω / (Ω ⋅ Ω)) for Ω ∈ eachslice(basis, dims=ndims(basis))]
+end
+
 function linear_combination(xs, basis)
     ρ = Array{eltype(basis)}(undef, size(basis, 1), size(basis, 2))
     linear_combination!(ρ, xs, basis)
@@ -59,7 +66,10 @@ function linear_combination(xs, basis)
 end
 
 function linear_combination!(ρ, xs, basis)
-    @tullio ρ[i, j] = basis[i, j, k] * xs[k]
+    fill!(ρ, zero(eltype(basis)))
+    for (x, Ω) in zip(xs, eachslice(basis, dims=ndims(basis)))
+        @. ρ += x * Ω
+    end
 end
 
 function isposdef!(ρ, xs, basis)

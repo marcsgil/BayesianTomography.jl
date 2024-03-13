@@ -15,3 +15,10 @@ end
 function sample_haar_vector(n)
     sample_haar_unitary(n)[:, 1]
 end
+
+function sample_ginibri_state(d)
+    X = rand(ComplexF32, d, d)
+    ρ = X * X'
+    ρ ./= tr(ρ)
+    ρ
+end
