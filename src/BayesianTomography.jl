@@ -17,7 +17,7 @@ include("representations.jl")
 export complete_representation, reduced_representation, History
 
 include("samplers.jl")
-export sample_haar_unitary, sample_haar_vector, sample_ginibri_state
+export sample, HaarUnitary, HaarVector, Simplex, ProductMeasure, GinibreEnsamble
 
 include("utils.jl")
 export simulate_outcomes, simulate_outcomes!, fidelity, project2density, project2pure
@@ -35,7 +35,7 @@ using PrecompileTools: @setup_workload, @compile_workload
         li = LinearInversion(povm)
         bi = BayesianInference(povm, 1, 1)
 
-        ρ = sample_ginibri_state(2)
+        ρ = sample(GinibreEnsamble(2))
 
         outcomes = simulate_outcomes(ρ, povm, 1)
         σ = prediction(outcomes, li)
@@ -44,7 +44,7 @@ using PrecompileTools: @setup_workload, @compile_workload
         outcomes = simulate_outcomes(ρ, povm, 1)
         σ, _ = prediction(outcomes, bi)
 
-        ψ = sample_haar_vector(2)
+        ψ = sample(HaarVector(2))
 
         outcomes = simulate_outcomes(ψ, povm, 1)
         φ = prediction(outcomes, li) |> project2pure

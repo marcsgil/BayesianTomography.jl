@@ -94,6 +94,10 @@ struct History{T<:Integer}
     history::Vector{T}
 end
 
+function History(history)
+    History{eltype(history)}(history)
+end
+
 """
     reduced_representation(history::History)
 

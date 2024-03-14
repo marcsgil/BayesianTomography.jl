@@ -1,9 +1,9 @@
-function simulate_outcomes(ψ::Vector{T}, povm, N; atol=1e-3) where {T}
+function simulate_outcomes(ψ::AbstractVector, povm, N; atol=1e-3)
     probs = [real(dot(ψ, E, ψ)) for E in povm]
     simulate_outcomes(probs, N; atol)
 end
 
-function simulate_outcomes(ρ::Matrix{T}, povm, N; atol=1e-3) where {T}
+function simulate_outcomes(ρ::AbstractMatrix, povm, N; atol=1e-3)
     probs = [real(ρ ⋅ E) for E in povm]
     simulate_outcomes(probs, N; atol)
 end

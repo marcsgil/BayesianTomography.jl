@@ -110,5 +110,5 @@ function prediction(outcomes, method::BayesianInference)
         merge!(stats[1], stats[n])
     end
 
-    return linear_combination(mean(stats[1]), gell_man_matrices(d)), stats[1]
+    return linear_combination(mean(stats[1]), gell_man_matrices(d)), cov(stats[1])
 end

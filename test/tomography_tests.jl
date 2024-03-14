@@ -6,10 +6,7 @@ povm = augment_povm(bs_povm, half_wave_plate, quater_wave_plate, probabilities=[
 li = LinearInversion(povm)
 bi = BayesianInference(povm, 10^5, 10^3)
 
-for _ ∈ 1:10
-    #Mixed
-    ρ = sample_ginibri_state(2)
-
+for ρ ∈ eachslice(sample(GinibreEnsamble(2), 10), dims=3)
     outcomes = simulate_outcomes(ρ, povm, 10^6)
     σ = prediction(outcomes, li)
     @test fidelity(ρ, σ) ≥ 0.99
@@ -17,10 +14,9 @@ for _ ∈ 1:10
     outcomes = simulate_outcomes(ρ, povm, 10^4)
     σ, _ = prediction(outcomes, bi)
     @test fidelity(ρ, σ) ≥ 0.99
+end
 
-    #Pure
-    ψ = sample_haar_vector(2)
-
+for ψ ∈ eachslice(sample(HaarVector(2), 10), dims=2)
     outcomes = simulate_outcomes(ψ, povm, 10^6)
     φ = prediction(outcomes, li) |> project2pure
     @test fidelity(ψ, φ) ≥ 0.99
