@@ -20,8 +20,9 @@ include("samplers.jl")
 export sample, HaarUnitary, HaarVector, Simplex, ProductMeasure, GinibreEnsamble
 
 include("utils.jl")
-export simulate_outcomes, simulate_outcomes!, fidelity, project2density, project2pure
-export linear_combination, linear_combination!, isposdef!
+export simulate_outcomes, simulate_outcomes!, fidelity, project2density, project2pure,
+    linear_combination, linear_combination!, isposdef!,
+    real_orthogonal_projection, orthogonal_projection
 
 using PrecompileTools: @setup_workload, @compile_workload
 
