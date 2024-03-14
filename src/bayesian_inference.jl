@@ -83,7 +83,7 @@ function reduced_representation(povm, outcomes)
     reduced_povm = similar(povm, size(reduced_outcomes, 2), size(povm, 2))
 
     for n ∈ axes(reduced_povm, 2), m ∈ axes(reduced_povm, 1)
-        reduced_povm[m, n] = povm[reduced_outcomes[1, m], n]
+        reduced_povm[m, n] = povm[Int(reduced_outcomes[1, m]), n]
     end
 
     reduced_povm, view(reduced_outcomes, 2, :)
