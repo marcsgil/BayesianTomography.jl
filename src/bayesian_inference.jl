@@ -4,11 +4,11 @@ function log_likelihood(outcomes, operators, xs, ancilla)
     outcomes ⋅ ancilla
 end
 
-function update_x!(x, x₀, β)
+function update_x!(x, x₀, σ)
     x[begin] = zero(eltype(x))
     _x = @view x[begin+1:end]
     randn!(_x,)
-    map!(x -> x * β, _x, _x)
+    map!(x -> x * σ, _x, _x)
     map!(+, x, x, x₀)
     nothing
 end
@@ -34,7 +34,7 @@ function update_x₀!(x₀, x, y₀, f, dist, stats)
     end
 end
 
-function metropolisHastings(f, x₀, nsamples, nwarm=0; β=1e-3)
+function metropolisHastings(f, x₀, nsamples, nwarm=0; σ=1e-3)
     dist = Exponential()
     L = length(x₀)
     d = Int(√L)
@@ -47,7 +47,7 @@ function metropolisHastings(f, x₀, nsamples, nwarm=0; β=1e-3)
     ρ = Matrix{complex(T)}(undef, d, d)
 
     for _ ∈ 1:nwarm
-        update_x!(x, x₀, β)
+        update_x!(x, x₀, σ)
 
         if isposdef!(ρ, x, basis)
             y₀ = update_x₀!(x₀, x, y₀, f, dist)
@@ -56,7 +56,7 @@ function metropolisHastings(f, x₀, nsamples, nwarm=0; β=1e-3)
 
     stat = CovMatrix(T, L)
     for _ ∈ 1:nsamples
-        update_x!(x, x₀, β)
+        update_x!(x, x₀, σ)
 
         if isposdef!(ρ, x, basis)
             y₀ = update_x₀!(x₀, x, y₀, f, dist, stat)
