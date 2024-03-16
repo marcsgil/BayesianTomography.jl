@@ -27,7 +27,7 @@ function update_x₀!(x₀, x, y₀, f, dist, stats)
     y = f(x)
     if y₀ - y ≤ rand(dist)
         @. x₀ = x
-        fit!(stats, Vector(x₀))
+        fit!(stats, x₀)
         return y
     else
         return y₀
@@ -66,15 +66,15 @@ function metropolisHastings(f, x₀, nsamples, nwarm=0; σ=1e-3)
     stat
 end
 
-struct BayesianInference{T<:Real,N}
+struct BayesianInference{T<:Real}
     povm::Matrix{T}
     nsamples::Int
     nwarm::Int
-    function BayesianInference(povm::AbstractArray{Matrix{T2},N}, nsamples, nwarm) where {T2,N}
+    function BayesianInference(povm::AbstractArray{Matrix{T2}}, nsamples, nwarm) where {T2}
         T1 = real(T2)
         basis = gell_man_matrices(size(first(povm), 1))
         f(F) = real_orthogonal_projection(F, basis)
-        new{T1,N}(stack(f, povm, dims=1), nsamples, nwarm)
+        new{T1}(stack(f, povm, dims=1), nsamples, nwarm)
     end
 end
 
@@ -86,19 +86,20 @@ function reduced_representation(povm, outcomes)
         reduced_povm[m, n] = povm[Int(reduced_outcomes[1, m]), n]
     end
 
-    reduced_povm, view(reduced_outcomes, 2, :)
+    T = eltype(povm)
+    reduced_povm, map(T, view(reduced_outcomes, 2, :))
 end
 
 
-function prediction(outcomes, method::BayesianInference)
+function prediction(outcomes, method::BayesianInference{T}) where {T}
     reduced_povm, reduced_outcomes = reduced_representation(method.povm, outcomes)
 
     d = Int(√size(reduced_povm, 2))
-    x₀ = zeros(Float32, d^2)
+    x₀ = zeros(T, d^2)
     x₀[begin] = 1 / √d
 
     nt = Threads.nthreads()
-    stats = fill(CovMatrix(eltype(x₀), length(x₀)), nt)
+    stats = fill(CovMatrix(T, d^2), nt)
 
     Threads.@threads for n ∈ eachindex(stats)
         ancilla = similar(reduced_outcomes, float(eltype(reduced_outcomes)))

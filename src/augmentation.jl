@@ -1,4 +1,5 @@
-function compose_povm(povms...; probabilities=fill(Float32(1 / length(povms)), length(povms)))
+function compose_povm(povms::AbstractArray{Matrix{T}}...;
+    probabilities=fill(one(T) / length(povms), length(povms))) where {T}
     stack(probabilities[n] * povm for (n, povm) in enumerate(povms))
 end
 
@@ -14,6 +15,7 @@ function unitary_transform(povm, unitary)
     _povm
 end
 
-function augment_povm(povm, unitaries...; probabilities=fill(1 / (length(unitaries) + 1), length(unitaries) + 1))
+function augment_povm(povm::AbstractArray{Matrix{T}}, unitaries...;
+    probabilities=fill(one(T) / (length(unitaries) + 1), length(unitaries) + 1)) where {T}
     compose_povm(povm, (unitary_transform(povm, unitary) for unitary ∈ unitaries)...; probabilities)
 end

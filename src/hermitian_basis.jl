@@ -32,7 +32,7 @@ julia> X_matrix(1,2,2)
  0.707107+0.0im       0.0+0.0im
 ```
 """
-function X_matrix(j, k, d, T=ComplexF32)
+function X_matrix(j, k, d, ::Type{T}=ComplexF32) where {T<:Union{Real,Complex}}
     result = zeros(T, d, d)
     result[j, k] = 1
     result[k, j] = 1
@@ -57,7 +57,7 @@ julia> Y_matrix(1,2,2)
  0.0-0.707107im  0.0+0.0im
 ```
 """
-function Y_matrix(j, k, d, T=ComplexF32)
+function Y_matrix(j, k, d, ::Type{T}=ComplexF32) where {T<:Complex}
     result = zeros(T, d, d)
     result[j, k] = im
     result[k, j] = -im
@@ -95,18 +95,15 @@ julia> Z_matrix(2, 3)
       0.0+0.0im       0.0+0.0im  -0.816497+0.0im
 ```
 """
-function Z_matrix(j, d, T=ComplexF32)
-    @assert -1 ≤ j ≤ d - 1
-
+function Z_matrix(j, d, ::Type{T}=ComplexF32) where {T<:Union{Real,Complex}}
     if j == 0
         result = Matrix{T}(I, d, d)
     else
-        diag = zeros(ComplexF32, d)
+        result = zeros(T, d, d)
         for k ∈ 1:j
-            diag[k] = 1
+            result[k, k] = 1
         end
-        diag[j+1] = -j
-        result = diagm(diag)
+        result[j+1, j+1] = -j
     end
     normalize!(result)
     result
@@ -149,16 +146,24 @@ gell_man_matrices(2,include_identity=false)
       0.0+0.0im  -0.707107+0.0im
 ```
 """
-function gell_man_matrices(d; include_identity=true)
-    Js = triangular_indices(d)
-    Xs = (X_matrix(J..., d) for J ∈ Js)
-    Ys = (Y_matrix(J..., d) for J ∈ Js)
-    Zs = (Z_matrix(j, d) for j ∈ 1:d-1)
+function gell_man_matrices(d, ::Type{T}=ComplexF32; include_identity=true) where {T<:Complex}
+    f(x) = x + include_identity
+    result = Array{T,3}(undef, d, d, d^2 - 1 + include_identity)
+
     if include_identity
-        return stack((Z_matrix(0, d), Xs..., Ys..., Zs...), dims=3)
-    else
-        return stack((Xs..., Ys..., Zs...), dims=3)
+        result[:, :, 1] .= Z_matrix(0, d, T)
     end
+
+    for (n, J) ∈ enumerate(triangular_indices(d))
+        result[:, :, f(n)] .= X_matrix(J..., d, T)
+        result[:, :, f(n)+d*(d-1)÷2] .= Y_matrix(J..., d, T)
+    end
+
+    for j ∈ 1:d-1
+        result[:, :, f(j)+d*(d-1)] .= Z_matrix(j, d, T)
+    end
+
+    result
 end
 
 """
@@ -171,6 +176,6 @@ If no basis is provided, the Gell-Mann matrices of appropriate dimension are use
 If `Ω` has dimension d, then `basis` should be an array with dimesnion `d+1` with the last 
 dimension indexing the basis elements.
 """
-function basis_decomposition(Ω, basis=gell_man_matrices(d))
+function basis_decomposition(Ω, basis=gell_man_matrices(d, eltype(Ω)))
     [real(Ω ⋅ Ω′) for Ω′ ∈ eachslice(basis, dims=ndims(basis))]
 end
