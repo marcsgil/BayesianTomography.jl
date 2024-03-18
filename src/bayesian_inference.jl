@@ -4,38 +4,27 @@ function log_likelihood(outcomes, operators, xs, ancilla)
     outcomes ⋅ ancilla
 end
 
-function update_x!(x, x₀, σ)
+function proposal!(x, x₀, τ)
     x[begin] = zero(eltype(x))
     _x = @view x[begin+1:end]
     randn!(_x,)
-    map!(x -> x * σ, _x, _x)
+    map!(x -> x * τ, _x, _x)
     map!(+, x, x, x₀)
-    nothing
 end
 
-function update_x₀!(x₀, x, y₀, f, dist)
+function acceptance!(x₀, x, y₀, f)
     y = f(x)
-    if y₀ - y ≤ rand(dist)
+    if y₀ - y ≤ log(rand())
         @. x₀ = x
-        return y
+        return y, true
     else
-        return y₀
+        return y₀, false
     end
 end
 
-function update_x₀!(x₀, x, y₀, f, dist, stats)
-    y = f(x)
-    if y₀ - y ≤ rand(dist)
-        @. x₀ = x
-        fit!(stats, x₀)
-        return y
-    else
-        return y₀
-    end
-end
-
-function metropolisHastings(f, x₀, nsamples, nwarm=0; σ=1e-3)
-    dist = Exponential()
+function metropolisHastings(f, x₀, nsamples, nwarm, τ; verbose=false)
+    out_of_domain = 0
+    accepted = 0
     L = length(x₀)
     d = Int(√L)
     basis = gell_man_matrices(d)
@@ -47,20 +36,27 @@ function metropolisHastings(f, x₀, nsamples, nwarm=0; σ=1e-3)
     ρ = Matrix{complex(T)}(undef, d, d)
 
     for _ ∈ 1:nwarm
-        update_x!(x, x₀, σ)
-
+        proposal!(x, x₀, τ)
         if isposdef!(ρ, x, basis)
-            y₀ = update_x₀!(x₀, x, y₀, f, dist)
+            y₀, _ = acceptance!(x₀, x, y₀, f)
         end
     end
 
     stat = CovMatrix(T, L)
     for _ ∈ 1:nsamples
-        update_x!(x, x₀, σ)
-
+        proposal!(x, x₀, τ)
         if isposdef!(ρ, x, basis)
-            y₀ = update_x₀!(x₀, x, y₀, f, dist, stat)
+            y₀, is_accepted = acceptance!(x₀, x, y₀, f)
+            accepted += is_accepted
+            fit!(stat, x₀)
+        else
+            out_of_domain += 1
         end
+    end
+
+    if verbose
+        println("Out of domain rate: ", out_of_domain / nsamples)
+        println("Acceptance rate: ", accepted / nsamples)
     end
 
     stat
@@ -70,11 +66,12 @@ struct BayesianInference{T<:Real}
     povm::Matrix{T}
     nsamples::Int
     nwarm::Int
-    function BayesianInference(povm::AbstractArray{Matrix{T2}}, nsamples, nwarm) where {T2}
+    τ::T
+    function BayesianInference(povm::AbstractArray{Matrix{T2}}, nsamples, nwarm, τ=1.0f-3) where {T2}
         T1 = real(T2)
         basis = gell_man_matrices(size(first(povm), 1))
         f(F) = real_orthogonal_projection(F, basis)
-        new{T1}(stack(f, povm, dims=1), nsamples, nwarm)
+        new{T1}(stack(f, povm, dims=1), nsamples, nwarm, τ)
     end
 end
 
@@ -91,23 +88,22 @@ function reduced_representation(povm, outcomes)
 end
 
 
-function prediction(outcomes, method::BayesianInference{T}) where {T}
+function prediction(outcomes, method::BayesianInference{T}; nchains=1, verbose=false) where {T}
     reduced_povm, reduced_outcomes = reduced_representation(method.povm, outcomes)
 
     d = Int(√size(reduced_povm, 2))
     x₀ = zeros(T, d^2)
     x₀[begin] = 1 / √d
 
-    nt = Threads.nthreads()
-    stats = fill(CovMatrix(T, d^2), nt)
+    stats = fill(CovMatrix(T, d^2), nchains)
 
     Threads.@threads for n ∈ eachindex(stats)
         ancilla = similar(reduced_outcomes, float(eltype(reduced_outcomes)))
         posterior(x) = log_likelihood(reduced_outcomes, reduced_povm, x, ancilla)
-        stats[n] = metropolisHastings(posterior, x₀, method.nsamples ÷ nt, method.nwarm)
+        stats[n] = metropolisHastings(posterior, x₀, method.nsamples ÷ nchains, method.nwarm, method.τ, verbose=n == 1 && verbose)
     end
 
-    for n ∈ 2:nt
+    for n ∈ 2:nchains
         merge!(stats[1], stats[n])
     end
 

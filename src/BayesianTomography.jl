@@ -34,7 +34,7 @@ using PrecompileTools: @setup_workload, @compile_workload
     @compile_workload begin
         povm = augment_povm(bs_povm, half_wave_plate, quater_wave_plate, probabilities=[1 / 2, 1 / 4, 1 / 4])
         li = LinearInversion(povm)
-        bi = BayesianInference(povm, 1, 1)
+        bi = BayesianInference(povm, 1, 1, 1.0f-3)
 
         ρ = sample(GinibreEnsamble(2))
 
