@@ -1,62 +1,117 @@
-function log_likelihood(outcomes, operators, xs, ancilla)
-    mul!(ancilla, operators, xs)
-    map!(log, ancilla, ancilla)
-    outcomes ⋅ ancilla
+function log_likelihood(outcomes, operators, xs, cache)
+    mul!(cache, operators, xs)
+    map!(log, cache, cache)
+    outcomes ⋅ cache
 end
 
-function proposal!(x, x₀, τ)
-    x[begin] = zero(eltype(x))
-    _x = @view x[begin+1:end]
-    randn!(_x,)
-    map!(x -> x * τ, _x, _x)
-    map!(+, x, x, x₀)
+function log_and_gradient!(outcomes, operators, xs, grad, cache1, cache2)
+    mul!(cache1, operators, xs)
+    map!(/, cache2, operators, cache1)
+    map!(log, cache1, cache1)
+    mul!(grad, operators', cache2)
+    outcomes ⋅ cache1
 end
 
-function acceptance!(x₀, x, y₀, f)
-    y = f(x)
-    if y₀ - y ≤ log(rand())
+function h(z, v, grad, τ, A)
+    _grad = @view grad[begin+1:end]
+    (z ⋅ grad - v ⋅ grad - τ * dot(_grad, A, _grad) / 2) / 2
+end
+
+function proposal!(x, x₀, grad_x₀, τ, ρ, basis, Σ=I)
+    is_in_domain = false
+    not_in_domain_count = -1
+    while !is_in_domain
+        _x₀ = @view x₀[begin+1:end]
+        _x = @view x[begin+1:end]
+        _grad_x₀ = @view grad_x₀[begin+1:end]
+        mul!(_x, Σ, _grad_x₀)
+        _x .*= τ
+        _x .+= _x₀
+        Random.rand!(MvNormal(_x, 2 * τ * Σ), _x)
+        is_in_domain = isposdef!(ρ, x, basis)
+        not_in_domain_count += 1
+        """if not_in_domain_count > 10^4
+            τ /= 100
+        end"""
+    end
+    return not_in_domain_count, τ
+end
+
+function acceptance!(x₀, x, y₀, grad₀, grad, f, τ, Σ=Matrix{eltype(x)}(I, length(x) - 1, length(x) - 1))
+    y = f(x, grad)
+    if y₀ - y + h(x, x₀, grad₀, τ, Σ) - h(x₀, x, grad, τ, Σ) ≤ rand(Exponential())
         @. x₀ = x
+        @. grad₀ = grad
         return y, true
     else
         return y₀, false
     end
 end
 
+function update_step_size(τ, acceptance_ratio, not_in_domain_ratio, target, m, M)
+    if target < acceptance_ratio && τ < M && not_in_domain_ratio < 10
+        return τ * 1.01
+    else
+        if τ > m
+            return τ * 0.99
+        else
+            return τ
+        end
+    end
+    @show τ
+end
+
 function metropolisHastings(f, x₀, nsamples, nwarm, τ; verbose=false)
-    out_of_domain = 0
-    accepted = 0
     L = length(x₀)
     d = Int(√L)
     basis = gell_man_matrices(d)
+    target = 0.574
+    minimum = 1e-8
+    maximum = 1
 
-    y₀ = f(x₀)
-    x = similar(x₀)
+    x = copy(x₀)
+    grad₀ = similar(x)
+    grad = similar(x)
+    y₀ = f(x₀, grad₀)
 
     T = eltype(x₀)
     ρ = Matrix{complex(T)}(undef, d, d)
 
-    for _ ∈ 1:nwarm
-        proposal!(x, x₀, τ)
-        if isposdef!(ρ, x, basis)
-            y₀, _ = acceptance!(x₀, x, y₀, f)
-        end
+    out_of_domain = 0
+    accepted = 0
+    stat = CovMatrix(T, L)
+    for n ∈ 1:nwarm
+        not_in_domain_count, τ = proposal!(x, x₀, grad₀, τ, ρ, basis)
+        out_of_domain += not_in_domain_count
+        y₀, is_accepted = acceptance!(x₀, x, y₀, grad₀, grad, f, τ)
+        accepted += is_accepted
+        τ = update_step_size(τ, accepted / n, out_of_domain / n, target, minimum, maximum)
+        fit!(stat, x₀)
     end
 
+
+    Σ = @view cov(stat)[begin+1:end, begin+1:end]
+    Σ *= d / tr(Σ)
+    out_of_domain = 0
+    accepted = 0
     stat = CovMatrix(T, L)
-    for _ ∈ 1:nsamples
-        proposal!(x, x₀, τ)
-        if isposdef!(ρ, x, basis)
-            y₀, is_accepted = acceptance!(x₀, x, y₀, f)
-            accepted += is_accepted
-            fit!(stat, x₀)
-        else
-            out_of_domain += 1
+    for n ∈ 1:nsamples
+        if n % 100 == 0
+            Σ = @view cov(stat)[begin+1:end, begin+1:end]
+            Σ *= d / tr(Σ)
         end
+        not_in_domain_count, τ = proposal!(x, x₀, grad₀, τ, ρ, basis)
+        out_of_domain += not_in_domain_count
+        y₀, is_accepted = acceptance!(x₀, x, y₀, grad₀, grad, f, τ)
+        accepted += is_accepted
+        τ = update_step_size(τ, accepted / n, out_of_domain / n, target, minimum, maximum)
+        fit!(stat, x₀)
     end
 
     if verbose
         println("Out of domain rate: ", out_of_domain / nsamples)
         println("Acceptance rate: ", accepted / nsamples)
+        println("τ: ", τ)
     end
 
     stat
@@ -88,24 +143,18 @@ function reduced_representation(povm, outcomes)
 end
 
 
-function prediction(outcomes, method::BayesianInference{T}; nchains=1, verbose=false) where {T}
+function prediction(outcomes, method::BayesianInference{T}; verbose=false) where {T}
     reduced_povm, reduced_outcomes = reduced_representation(method.povm, outcomes)
 
     d = Int(√size(reduced_povm, 2))
     x₀ = zeros(T, d^2)
     x₀[begin] = 1 / √d
 
-    stats = fill(CovMatrix(T, d^2), nchains)
+    stats = CovMatrix(T, d^2)
+    cache1 = similar(reduced_outcomes, float(eltype(reduced_outcomes)))
+    cache2 = similar(cache1)
+    posterior(x, grad) = log_and_gradient!(reduced_outcomes, reduced_povm, x, grad, cache1, cache2)
+    stats = metropolisHastings(posterior, x₀, method.nsamples, method.nwarm, method.τ; verbose)
 
-    Threads.@threads for n ∈ eachindex(stats)
-        ancilla = similar(reduced_outcomes, float(eltype(reduced_outcomes)))
-        posterior(x) = log_likelihood(reduced_outcomes, reduced_povm, x, ancilla)
-        stats[n] = metropolisHastings(posterior, x₀, method.nsamples ÷ nchains, method.nwarm, method.τ, verbose=n == 1 && verbose)
-    end
-
-    for n ∈ 2:nchains
-        merge!(stats[1], stats[n])
-    end
-
-    return linear_combination(mean(stats[1]), gell_man_matrices(d)), cov(stats[1])
+    return linear_combination(mean(stats), gell_man_matrices(d)), cov(stats)
 end
