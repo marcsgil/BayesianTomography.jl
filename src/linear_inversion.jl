@@ -9,6 +9,6 @@ struct LinearInversion{T1,T2}
 end
 
 function prediction(outcomes, method::LinearInversion)
-    xs = method.pseudo_inv * vec(normalize(outcomes))
+    xs = method.pseudo_inv * vec(normalize(outcomes, 1))
     linear_combination(xs, method.basis) |> project2density
 end

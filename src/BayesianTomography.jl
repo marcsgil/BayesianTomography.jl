@@ -2,6 +2,7 @@ module BayesianTomography
 
 using Distributions, OnlineStats, Tullio, LinearAlgebra, StatsBase, Random
 import LinearAlgebra: isposdef!, isposdef
+using Chairmarks, AllocCheck
 
 include("hermitian_basis.jl")
 export gell_man_matrices, basis_decomposition, Z_matrix, X_matrix, Y_matrix, triangular_indices
@@ -34,7 +35,7 @@ using PrecompileTools: @setup_workload, @compile_workload
     @compile_workload begin
         povm = augment_povm(bs_povm, half_wave_plate, quater_wave_plate, probabilities=[1 / 2, 1 / 4, 1 / 4])
         li = LinearInversion(povm)
-        bi = BayesianInference(povm, 1, 1)
+        bi = BayesianInference(povm)
 
         ρ = sample(GinibreEnsamble(2))
 
@@ -43,7 +44,7 @@ using PrecompileTools: @setup_workload, @compile_workload
         fidelity(ρ, σ)
 
         outcomes = simulate_outcomes(ρ, povm, 1)
-        σ, _ = prediction(outcomes, bi)
+        σ, _ = prediction(outcomes, bi, nsamples=1, nwarm=1)
 
         ψ = sample(HaarVector(2))
 
@@ -52,7 +53,7 @@ using PrecompileTools: @setup_workload, @compile_workload
         fidelity(ψ, φ)
 
         outcomes = simulate_outcomes(ψ, povm, 1)
-        φ, _ = prediction(outcomes, bi)
+        φ, _ = prediction(outcomes, bi, nsamples=1, nwarm=1)
     end
 end
 

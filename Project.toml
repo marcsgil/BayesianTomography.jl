@@ -4,6 +4,8 @@ authors = ["Marcos Gil <marcosgildeoliveira@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+AllocCheck = "9b6a8646-10ed-4001-bbdc-1d2f46dfbb1a"
+Chairmarks = "0ca39b1e-fe0b-4e98-acfc-b1656634c4de"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 OnlineStats = "a15396b6-48d5-5d58-9928-6d29437db91e"

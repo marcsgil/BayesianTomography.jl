@@ -1,36 +1,60 @@
-function log_and_gradient!(outcomes, operators, xs, ∇ℓπ, cache1, cache2)
-    mul!(cache1, operators, xs)
-    map!(/, cache2, operators, cache1)
+"""
+    log_likelihood(outcomes, povm, x, ∇ℓπ, cache1, cache2)
+
+Returns the log-likelihood of the `outcomes` given the `povm` and the state `x`.
+The gradient of the log-likelihood is stored in `∇ℓπ`.
+"""
+function log_likelihood(outcomes, povm, x, ∇ℓπ, cache1, cache2)
+    mul!(cache1, povm, x)
+    map!(/, cache2, povm, cache1)
     map!(log, cache1, cache1)
-    mul!(∇ℓπ, operators', cache2)
+    mul!(∇ℓπ, povm', cache2)
     outcomes ⋅ cache1
 end
 
-function prepare_distribution!(μ, Σ, x, ∇ℓπ, σ, A)
-    BLAS.gemv!('N', σ^2 / 2, A, ∇ℓπ, false, μ)
-    μ .+= x
-    @. Σ = σ^2 * A
-    MvNormal((@view μ[begin+1:end]), @view(Σ[begin+1:end, begin+1:end]))
-end
+"""
+    function proposal!(x, x₀, ∇ℓπ₀, σ)
 
-function proposal!(x, dist)
+Propose a new state `x` given the current state `x₀`.
+
+The proposal is done by sampling a random vector `x` from a normal distribution
+with mean `x₀ + σ^2 * ∇ℓπ₀ / 2` and covariance matrix `σ^2I`.
+"""
+function proposal!(x, x₀, ∇ℓπ₀, σ)
     _x = @view x[begin+1:end]
-    rand!(dist, _x)
+    _x₀ = @view x₀[begin+1:end]
+    _∇ℓπ₀ = @view ∇ℓπ₀[begin+1:end]
+    randn!(_x)
+    _x .*= σ
+    @. _x += _x₀ + σ^2 * _∇ℓπ₀ / 2
 end
 
-function h(x, x₀, ∇ℓπ, σ, A)
+function h(x, x₀, ∇ℓπ, σ)
     _∇ℓπ = @view ∇ℓπ[begin+1:end]
-    _A = @view A[begin+1:end, begin+1:end]
-    (x ⋅ ∇ℓπ - x₀ ⋅ ∇ℓπ - σ^2 * dot(_∇ℓπ, _A, _∇ℓπ) / 4) / 2
+    (x ⋅ ∇ℓπ - x₀ ⋅ ∇ℓπ - σ^2 * (_∇ℓπ ⋅ _∇ℓπ) / 4) / 2
 end
 
-function proposal_ratio(x, x₀, ∇ℓπ, ∇ℓπ₀, σ, A)
-    h(x, x₀, ∇ℓπ₀, σ, A) - h(x₀, x, ∇ℓπ, σ, A)
+"""
+    proposal_ratio(x, x₀, ∇ℓπ, ∇ℓπ₀, σ)
+
+Returns the ratio of the transition probability of `x₀` given `x` and the `x` given `x₀`.
+
+Used in the acceptance step of the MALA algorithm.
+"""
+function proposal_ratio(x, x₀, ∇ℓπ, ∇ℓπ₀, σ)
+    h(x₀, x, ∇ℓπ, σ) - h(x, x₀, ∇ℓπ₀, σ)
 end
 
-function acceptance!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, f, σ, A)
-    ℓπ = f(x, ∇ℓπ)
-    if ℓπ₀ - ℓπ + proposal_ratio(x, x₀, ∇ℓπ, ∇ℓπ₀, σ, A) ≤ rand(Exponential())
+"""
+    acceptance!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, f, σ)
+
+Accept or reject the proposed state `x` given the current state `x₀`.
+If accepted, the state `x₀` is updated to `x` and the gradient `∇ℓπ₀` is updated to `∇ℓπ`.
+Returns a tuple with the updated log-likelihood `ℓπ` and a boolean indicating if the state was accepted.
+"""
+function acceptance!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function, σ)
+    ℓπ = ℓπ_function(x, ∇ℓπ)
+    if ℓπ - ℓπ₀ + proposal_ratio(x, x₀, ∇ℓπ, ∇ℓπ₀, σ) ≥ log(rand())
         @. x₀ = x
         @. ∇ℓπ₀ = ∇ℓπ
         return ℓπ, true
@@ -39,112 +63,111 @@ function acceptance!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, f, σ, A)
     end
 end
 
-function step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, f, σ, A, μ, Σ, ρ, basis, stats)
-    is_in_domain = false
+"""
+    update_σ!(parameters, n, target, min, max)
+
+Update the parameter `σ = parameters[1]` of the MALA algorithm given the current iteration `n` and the acceptance rate `parameters[2] / n`.
+The target acceptance rate is `target` and the minimum and maximum values of `σ` are `min` and `max`, respectively.
+"""
+function update_σ!(parameters, n, target, min, max)
+    if parameters[1] < min || parameters[2] / n > target
+        parameters[1] *= 1.01
+    end
+
+    if parameters[1] > max || parameters[2] / n < target
+        parameters[1] *= 0.99
+    end
+end
+
+
+"""
+    step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function, parameters, ρ, basis, stats, n, target, min, max)
+
+Perform a step of the MALA algorithm.
+"""
+function step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function, parameters, ρ, basis, stats, n, target, min, max)
+    not_in_domain = true
     not_in_domain_count = -1
-    T = typeof(σ)
 
-    while !is_in_domain
-        dist = prepare_distribution!(μ, Σ, x₀, ∇ℓπ₀, σ, A)
-        proposal!(x, dist)
+    # Keep proposing new states until a valid state is found
+    while not_in_domain
+        proposal!(x, x₀, ∇ℓπ₀, parameters[1])
 
-        is_in_domain = isposdef!(ρ, x, basis)
+        not_in_domain = !isposdef!(ρ, x, basis)
         not_in_domain_count += 1
 
-        if !is_in_domain && not_in_domain_count > 100
-            σ *= T(0.99)
+        # Reduce σ if we keep getting out of domain states
+        if not_in_domain && not_in_domain_count > 10
+            parameters[1] *= 0.99
         end
     end
 
-    ℓπ₀, is_accepted = acceptance!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, f, σ, A)
+    # Accept or reject the proposed state
+    ℓπ₀, is_accepted = acceptance!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function, parameters[1])
+
+    # Update the chain statistics
     fit!(stats, x₀)
 
-    ℓπ₀, is_accepted, not_in_domain_count, σ
+    # Update the global statistics
+    parameters[2] += is_accepted
+    parameters[3] += not_in_domain_count
+
+    # Update σ
+    update_σ!(parameters, n, target, min, max)
+    ℓπ₀
 end
 
-function update_step_size(σ, acceptance_ratio, target, min, max)
-    T = typeof(σ)
-    if target < acceptance_ratio && σ < max
-        return σ * T(1.01)
-    else
-        if σ > min
-            return σ * T(0.99)
-        else
-            return σ
-        end
-    end
-end
+function sample_markov_chain(ℓπ, x₀::Vector{T}, nsamples, nwarm;
+    verbose=false,
+    σ=oftype(T, 1e-2),
+    target=0.574,
+    minimum=1e-8,
+    maximum=100) where {T<:Real}
 
-function sample_markov_chain(f, x₀, nsamples, nwarm; verbose=false, σ=oftype(eltype(x₀), 1e-2))
     L = length(x₀)
     d = Int(√L)
 
-    target = 0.574
-    minimum = 1e-8
-    maximum = 100
+    ρ = Matrix{complex(T)}(undef, d, d)
+    basis = gell_man_matrices(d)
+
+    @assert x₀[1] ≈ 1 / √d "Initial state must be a valid density matrix. The first element must be 1/√d."
+    @assert isposdef!(ρ, x₀, basis) "Initial state must be a valid density matrix. It must be positive semidefinite."
 
     x = copy(x₀)
     ∇ℓπ₀ = similar(x)
     ∇ℓπ = similar(x)
-    ℓπ₀ = f(x₀, ∇ℓπ₀)
+    ℓπ₀ = ℓπ(x₀, ∇ℓπ₀)
 
-    T = eltype(x₀)
-    ρ = Matrix{complex(T)}(undef, d, d)
-    basis = gell_man_matrices(d)
-
-    μ = similar(x)
-    A = Matrix{T}(I, L, L)
-    Σ = similar(A)
-
-    global_out_of_domain_count = 0
-    global_accepted_count = 0
-
+    # σ, global_accepted_count, global_out_of_domain_count
+    parameters = [σ, zero(T), zero(T)]
     stats = CovMatrix(T, L)
     for n ∈ 1:nwarm
-        ℓπ₀, is_accepted, not_in_domain_count, σ = step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, f, σ, A, μ, Σ, ρ, basis, stats)
-        global_out_of_domain_count += not_in_domain_count
-        global_accepted_count += is_accepted
-        σ = update_step_size(σ, global_accepted_count / n, target, minimum, maximum)
+        ℓπ₀ = step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ, parameters, ρ, basis, stats, n, target, minimum, maximum)
     end
 
-    """copy!(A, cov(stats))
-    A *= d / tr(A)"""
-
-    global_out_of_domain_count = 0
-    global_accepted_count = 0
-
-    stat = CovMatrix(T, L)
+    parameters[2] = zero(T)
+    parameters[3] = zero(T)
+    stats = CovMatrix(T, L)
     for n ∈ 1:nsamples
-        """if n % 100 == 0
-            copy!(A, cov(stats))
-            A *= d / tr(A)
-        end"""
-        ℓπ₀, is_accepted, not_in_domain_count, σ = step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, f, σ, A, μ, Σ, ρ, basis, stats)
-        global_out_of_domain_count += not_in_domain_count
-        global_accepted_count += is_accepted
-        σ = update_step_size(σ, global_accepted_count / n, target, minimum, maximum)
-        @show x₀
-        @show ℓπ₀
+        ℓπ₀ = step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ, parameters, ρ, basis, stats, n, target, minimum, maximum)
     end
 
     if verbose
         @info "Run information:"
-        println("Out of domain rate: ", global_out_of_domain_count / nsamples)
-        println("Acceptance rate: ", global_accepted_count / nsamples)
-        println("σ: ", σ)
+        println("Final σ: ", parameters[1])
+        println("Final acceptance rate: ", parameters[2] / nsamples)
+        println("Final out of domain rate: ", parameters[3] / nsamples)
     end
 
-    stat
+    stats
 end
 
 struct BayesianInference{T<:Real}
     povm::Matrix{T}
-    nsamples::Int
-    nwarm::Int
-    function BayesianInference(povm::AbstractArray{Matrix{T}}, nsamples, nwarm) where {T}
+    function BayesianInference(povm::AbstractArray{Matrix{T}},) where {T}
         basis = gell_man_matrices(size(first(povm), 1))
         f(F) = real_orthogonal_projection(F, basis)
-        new{real(T)}(stack(f, povm, dims=1), nsamples, nwarm)
+        new{real(T)}(stack(f, povm, dims=1))
     end
 end
 
@@ -160,18 +183,29 @@ function reduced_representation(povm, outcomes)
     reduced_povm, map(T, view(reduced_outcomes, 2, :))
 end
 
+function maximally_mixed_state(d, ::Type{T}) where {T}
+    x = zeros(T, d^2)
+    x[begin] = 1 / √d
+    x
+end
 
-function prediction(outcomes, method::BayesianInference{T}; verbose=false, σ=T(1e-5)) where {T}
+function prediction(outcomes, method::BayesianInference{T};
+    verbose=false,
+    σ=T(1e-2),
+    log_prior=x -> zero(T),
+    x₀=maximally_mixed_state(Int(√size(method.povm, 2)), T),
+    nsamples=10^4,
+    nwarm=10^3) where {T}
+
     reduced_povm, reduced_outcomes = reduced_representation(method.povm, outcomes)
 
     d = Int(√size(reduced_povm, 2))
-    x₀ = zeros(T, d^2)
-    x₀[begin] = 1 / √d
+
 
     cache1 = similar(reduced_outcomes, float(eltype(reduced_outcomes)))
     cache2 = similar(cache1)
-    posterior(x, ∇ℓπ) = log_and_gradient!(reduced_outcomes, reduced_povm, x, ∇ℓπ, cache1, cache2)
-    stats = sample_markov_chain(posterior, x₀, method.nsamples, method.nwarm; verbose, σ)
+    posterior(x, ∇ℓπ) = log_likelihood(reduced_outcomes, reduced_povm, x, ∇ℓπ, cache1, cache2) + log_prior(x)
+    stats = sample_markov_chain(posterior, x₀, nsamples, nwarm; verbose, σ)
 
     return linear_combination(mean(stats), gell_man_matrices(d)), cov(stats)
 end

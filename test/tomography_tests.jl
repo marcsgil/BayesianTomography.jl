@@ -4,7 +4,7 @@ quater_wave_plate = [1 im; im 1] / √2
 
 povm = augment_povm(bs_povm, half_wave_plate, quater_wave_plate, probabilities=[1 / 2, 1 / 4, 1 / 4])
 li = LinearInversion(povm)
-bi = BayesianInference(povm, 10^5, 10^3)
+bi = BayesianInference(povm)
 
 for ρ ∈ eachslice(sample(GinibreEnsamble(2), 10), dims=3)
     outcomes = simulate_outcomes(ρ, povm, 10^6)
