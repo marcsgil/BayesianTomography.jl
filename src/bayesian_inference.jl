@@ -117,6 +117,16 @@ function step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function, paramet
     ℓπ₀
 end
 
+"""
+    sample_markov_chain(ℓπ, x₀::Vector{T}, nsamples, nwarm;
+        verbose=false,
+        σ=oftype(T, 1e-2),
+        target=0.574,
+        minimum=1e-8,
+        maximum=100) where {T<:Real}
+
+Sample a Markov chain to sample the posterior of a quantum state tomography experiment using the MALA algorithm.
+"""
 function sample_markov_chain(ℓπ, x₀::Vector{T}, nsamples, nwarm;
     verbose=false,
     σ=oftype(T, 1e-2),
