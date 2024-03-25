@@ -9,7 +9,7 @@ export gell_man_matrices, basis_decomposition, Z_matrix, X_matrix, Y_matrix, tri
 
 include("bayesian_inference.jl")
 include("linear_inversion.jl")
-export BayesianInference, LinearInversion, prediction
+export BayesianInference, LinearInversion, prediction, maximally_mixed_state
 
 include("augmentation.jl")
 export compose_povm, unitary_transform, unitary_transform!, augment_povm

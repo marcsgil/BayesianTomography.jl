@@ -85,7 +85,7 @@ end
 
 Perform a step of the MALA algorithm.
 """
-function step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function, parameters, ρ, basis, stats, n, target, min, max)
+function step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function, parameters, ρ, basis, stats, n, target, min, max, chain)
     not_in_domain = true
     not_in_domain_count = -1
 
@@ -107,6 +107,10 @@ function step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function, paramet
 
     # Update the chain statistics
     fit!(stats, x₀)
+
+    if !isnothing(chain)
+        chain[:, n] = x₀
+    end
 
     # Update the global statistics
     parameters[2] += is_accepted
@@ -132,7 +136,8 @@ function sample_markov_chain(ℓπ, x₀::Vector{T}, nsamples, nwarm;
     σ=oftype(T, 1e-2),
     target=0.574,
     minimum=1e-8,
-    maximum=100) where {T<:Real}
+    maximum=100,
+    chain=nothing) where {T<:Real}
 
     L = length(x₀)
     d = Int(√L)
@@ -152,14 +157,14 @@ function sample_markov_chain(ℓπ, x₀::Vector{T}, nsamples, nwarm;
     parameters = [σ, zero(T), zero(T)]
     stats = CovMatrix(T, L)
     for n ∈ 1:nwarm
-        ℓπ₀ = step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ, parameters, ρ, basis, stats, n, target, minimum, maximum)
+        ℓπ₀ = step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ, parameters, ρ, basis, stats, n, target, minimum, maximum, nothing)
     end
 
     parameters[2] = zero(T)
     parameters[3] = zero(T)
     stats = CovMatrix(T, L)
     for n ∈ 1:nsamples
-        ℓπ₀ = step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ, parameters, ρ, basis, stats, n, target, minimum, maximum)
+        ℓπ₀ = step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ, parameters, ρ, basis, stats, n, target, minimum, maximum, chain)
     end
 
     if verbose
@@ -205,7 +210,8 @@ function prediction(outcomes, method::BayesianInference{T};
     log_prior=x -> zero(T),
     x₀=maximally_mixed_state(Int(√size(method.povm, 2)), T),
     nsamples=10^4,
-    nwarm=10^3) where {T}
+    nwarm=10^3,
+    chain=nothing) where {T}
 
     reduced_povm, reduced_outcomes = reduced_representation(method.povm, outcomes)
 
@@ -215,7 +221,7 @@ function prediction(outcomes, method::BayesianInference{T};
     cache1 = similar(reduced_outcomes, float(eltype(reduced_outcomes)))
     cache2 = similar(cache1)
     posterior(x, ∇ℓπ) = log_likelihood(reduced_outcomes, reduced_povm, x, ∇ℓπ, cache1, cache2) + log_prior(x)
-    stats = sample_markov_chain(posterior, x₀, nsamples, nwarm; verbose, σ)
+    stats = sample_markov_chain(posterior, x₀, nsamples, nwarm; verbose, σ, chain)
 
     return linear_combination(mean(stats), gell_man_matrices(d)), cov(stats)
 end
