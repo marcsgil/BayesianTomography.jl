@@ -49,31 +49,31 @@ function project2pure(ρ)
     F.vectors[:, end] # the last eigenvector is the one with the largest eigenvalue
 end
 
-function orthogonal_projection(ρ, basis)
-    @assert ndims(ρ) + 1 == ndims(basis)
-    [ρ ⋅ Ω / (Ω ⋅ Ω) for Ω ∈ eachslice(basis, dims=ndims(basis))]
+function orthogonal_projection(ρ, set)
+    @assert ndims(ρ) + 1 == ndims(set)
+    [ρ ⋅ Ω / (Ω ⋅ Ω) for Ω ∈ eachslice(set, dims=ndims(set))]
 end
 
-function real_orthogonal_projection(ρ, basis)
-    @assert ndims(ρ) + 1 == ndims(basis)
-    [real(ρ ⋅ Ω / (Ω ⋅ Ω)) for Ω ∈ eachslice(basis, dims=ndims(basis))]
+function real_orthogonal_projection(ρ, set)
+    @assert ndims(ρ) + 1 == ndims(set)
+    [real(ρ ⋅ Ω / (Ω ⋅ Ω)) for Ω ∈ eachslice(set, dims=ndims(set))]
 end
 
-function linear_combination(xs, basis)
-    ρ = Array{eltype(basis)}(undef, size(basis, 1), size(basis, 2))
-    linear_combination!(ρ, xs, basis)
+function linear_combination(xs, set)
+    ρ = Array{eltype(set)}(undef, size(set, 1), size(set, 2))
+    linear_combination!(ρ, xs, set)
     ρ
 end
 
-function linear_combination!(ρ, xs, basis)
-    fill!(ρ, zero(eltype(basis)))
-    for (x, Ω) in zip(xs, eachslice(basis, dims=ndims(basis)))
+function linear_combination!(ρ, xs, set)
+    fill!(ρ, zero(eltype(set)))
+    for (x, Ω) in zip(xs, eachslice(set, dims=ndims(set)))
         @. ρ += x * Ω
     end
 end
 
-function isposdef!(ρ, xs, basis)
-    linear_combination!(ρ, xs, basis)
+function isposdef!(ρ, xs, set)
+    linear_combination!(ρ, xs, set)
     isposdef!(ρ)
 end
 

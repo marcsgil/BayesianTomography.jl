@@ -2,7 +2,6 @@ module BayesianTomography
 
 using Distributions, OnlineStats, Tullio, LinearAlgebra, StatsBase, Random
 import LinearAlgebra: isposdef!, isposdef
-using Chairmarks, AllocCheck
 
 include("hermitian_basis.jl")
 export gell_man_matrices, basis_decomposition, Z_matrix, X_matrix, Y_matrix, triangular_indices
