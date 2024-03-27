@@ -177,15 +177,32 @@ function sample_markov_chain(ℓπ, x₀::Vector{T}, nsamples, nwarm;
     stats
 end
 
+"""
+    BayesianInference(povm::AbstractArray{Matrix{T}}) where {T}
+
+Create a Bayesian inference object from a POVM.
+
+This is passed to the [`prediction`](@ref) method in order to perform the Bayesian inference.
+"""
 struct BayesianInference{T<:Real}
     povm::Matrix{T}
-    function BayesianInference(povm::AbstractArray{Matrix{T}},) where {T}
+    function BayesianInference(povm::AbstractArray{Matrix{T}}) where {T}
         basis = gell_man_matrices(size(first(povm), 1))
         f(F) = real_orthogonal_projection(F, basis)
         new{real(T)}(stack(f, povm, dims=1))
     end
 end
 
+
+"""
+    reduced_representation(povm, outcomes)
+
+Returns a reduced representation of both the `povm` and the `outcomes`.
+
+One determines the nonzero elements of `outcomes` and then selects the corresponding columns of the `povm`.
+
+This function is used in the Bayesian inference to reduce the size of the problem by ignoring unobserved outcomes.
+"""
 function reduced_representation(povm, outcomes)
     reduced_outcomes = reduced_representation(outcomes)
     reduced_povm = similar(povm, size(reduced_outcomes, 2), size(povm, 2))
@@ -198,12 +215,52 @@ function reduced_representation(povm, outcomes)
     reduced_povm, map(T, view(reduced_outcomes, 2, :))
 end
 
+"""
+    maximally_mixed_state(d, ::Type{T}) where {T}
+
+Returns the maximally mixed state of dimension `d`, represented as a vector of projections in the generalized Gell-Mann basis.
+
+The maximally mixed state is defined as `ρ = I / d`.
+
+Se also [`gell_man_basis`](@ref).
+"""
 function maximally_mixed_state(d, ::Type{T}) where {T}
     x = zeros(T, d^2)
     x[begin] = 1 / √d
     x
 end
 
+
+"""
+    prediction(outcomes, method::BayesianInference{T};
+        verbose=false,
+        σ=T(1e-2),
+        log_prior=x -> zero(T),
+        x₀=maximally_mixed_state(Int(√size(method.povm, 2)), T),
+        nsamples=10^4,
+        nwarm=10^3,
+        chain=nothing) where {T}
+
+Perform a Bayesian inference on the given `outcomes` using the Bayesian inference `method`.
+
+# Arguments
+
+- `outcomes`: The outcomes of the experiment.
+- `method::BayesianInference{T}`: The Bayesian inference method.
+- `verbose=false`: Print information about the run.
+- `σ=T(1e-2)`: The initial standard deviation of the proposal distribution.
+- `log_prior=x -> zero(T)`: The log-prior function.
+- `x₀=maximally_mixed_state(Int(√size(method.povm, 2)), T)`: The initial state of the chain.
+- `nsamples=10^4`: The number of samples to take.
+- `nwarm=10^3`: The number of warm-up samples to take.
+- `chain=nothing`: If not `nothing`, store the chain in this matrix.
+
+# Returns
+
+A tuple with the mean state and the covariance matrix.
+The mean state is already returned in matrix form.
+The covariance matrix is written in terms of the projections in the generalized Gell-Mann basis.
+"""
 function prediction(outcomes, method::BayesianInference{T};
     verbose=false,
     σ=T(1e-2),

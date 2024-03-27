@@ -1,6 +1,6 @@
 bs_povm = [[1.0+im 0; 0 0], [0 0; 0 1]]
 half_wave_plate = [1 1; 1 -1] / √2
-quater_wave_plate = [1 im; im 1] / √2
+quarter_wave_plate = [1 im; im 1] / √2
 
 povm = augment_povm(bs_povm, half_wave_plate, quater_wave_plate, probabilities=[1 / 2, 1 / 4, 1 / 4])
 li = LinearInversion(povm)

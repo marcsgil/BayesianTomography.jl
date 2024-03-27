@@ -1,14 +1,10 @@
 module BayesianTomography
 
 using Distributions, OnlineStats, Tullio, LinearAlgebra, StatsBase, Random
-import LinearAlgebra: isposdef!, isposdef
+import LinearAlgebra: isposdef!, isposdef, cond
 
 include("hermitian_basis.jl")
 export gell_man_matrices, basis_decomposition, Z_matrix, X_matrix, Y_matrix, triangular_indices
-
-include("bayesian_inference.jl")
-include("linear_inversion.jl")
-export BayesianInference, LinearInversion, prediction, maximally_mixed_state
 
 include("augmentation.jl")
 export compose_povm, unitary_transform, unitary_transform!, augment_povm
@@ -22,7 +18,11 @@ export sample, HaarUnitary, HaarVector, Simplex, ProductMeasure, GinibreEnsamble
 include("utils.jl")
 export simulate_outcomes, simulate_outcomes!, fidelity, project2density, project2pure,
     linear_combination, linear_combination!, isposdef!,
-    real_orthogonal_projection, orthogonal_projection
+    real_orthogonal_projection, orthogonal_projection, cond
+
+include("bayesian_inference.jl")
+include("linear_inversion.jl")
+export BayesianInference, LinearInversion, prediction, maximally_mixed_state
 
 using PrecompileTools: @setup_workload, @compile_workload
 

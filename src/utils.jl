@@ -77,3 +77,9 @@ function isposdef!(ρ, xs, set)
     isposdef!(ρ)
 end
 
+function cond(povm::Union{AbstractArray{T},AbstractMatrix{T}}, p::Real=2) where {T<:AbstractMatrix}
+    d = size(first(povm), 1)
+    set = gell_man_matrices(d)
+    A = stack(F -> real_orthogonal_projection(F, set), povm, dims=1)
+    cond(A, p)
+end
