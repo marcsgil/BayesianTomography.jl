@@ -1,14 +1,14 @@
 """
-    compose_povm(povms::AbstractArray{Matrix{T}}...; probabilities=fill(one(T) / length(povms), length(povms))) where {T}
+    compose_povm(povms::AbstractArray{Matrix{T}}...; weights=fill(one(T) / length(povms), length(povms))) where {T}
 
 Compose a POVM (Positive Operator-Valued Measure) from a set of given POVMs.
 
 # Arguments
 - `povms`: Variable number of POVMs. Each POVM is represented as an array of matrices.
-- `probabilities`: An optional array of probabilities associated with each POVM. If not provided, it defaults to a uniform distribution.
+- `weights`: An optional array of weights associated with each POVM. If not provided, it defaults to a uniform distribution.
 
 # Returns
-- A new POVM that is a composition of the input POVMs, weighted by their respective probabilities.
+- A new POVM that is a composition of the input POVMs, weighted by their respective weights.
 
 # Example
 ```julia
@@ -18,8 +18,8 @@ composed_povm = compose_povm(povm1, povm2)
 ```
 """
 function compose_povm(povms::AbstractArray{Matrix{T}}...;
-    probabilities=fill(one(T) / length(povms), length(povms))) where {T}
-    stack(probabilities[n] * povm for (n, povm) in enumerate(povms))
+    weights=fill(one(T) / length(povms), length(povms))) where {T}
+    stack(weights[n] * povm for (n, povm) in enumerate(povms))
 end
 
 """
@@ -72,14 +72,14 @@ end
 
 """
     augment_povm(povm::AbstractArray{Matrix{T}}, unitaries...; 
-        probabilities=fill(one(T) / (length(unitaries) + 1), length(unitaries) + 1) where {T}
+        weights=fill(one(T) / (length(unitaries) + 1), length(unitaries) + 1) where {T}
 
 Augment a POVM (Positive Operator-Valued Measure) by applying a set of unitary transformations to it.
 
 # Arguments
 - `povm`: The POVM to be augmented. It is represented as an array of matrices.
 - `unitaries`: Variable number of unitary matrices representing the transformations to be applied.
-- `probabilities`: An optional array of probabilities associated with each unitary transformation. If not provided, it defaults to a uniform distribution.
+- `weights`: An optional array of weights associated with each unitary transformation. If not provided, it defaults to a uniform distribution.
 
 # Returns
 - A new POVM that is the result of applying the unitary transformations to the input POVM.
@@ -89,10 +89,10 @@ Augment a POVM (Positive Operator-Valued Measure) by applying a set of unitary t
 bs_povm = [[1.0+im 0; 0 0], [0 0; 0 1]]
 half_wave_plate = [1 1; 1 -1] / √2
 quater_wave_plate = [1 im; im 1] / √2
-povm = augment_povm(bs_povm, half_wave_plate, quater_wave_plate, probabilities=[1 / 2, 1 / 4, 1 / 4])
+povm = augment_povm(bs_povm, half_wave_plate, quater_wave_plate, weights=[1 / 2, 1 / 4, 1 / 4])
 ```
 """
 function augment_povm(povm::AbstractArray{Matrix{T}}, unitaries...;
-    probabilities=fill(one(T) / (length(unitaries) + 1), length(unitaries) + 1)) where {T}
-    compose_povm(povm, (unitary_transform(povm, unitary) for unitary ∈ unitaries)...; probabilities)
+    weights=fill(one(T) / (length(unitaries) + 1), length(unitaries) + 1)) where {T}
+    compose_povm(povm, (unitary_transform(povm, unitary) for unitary ∈ unitaries)...; weights)
 end

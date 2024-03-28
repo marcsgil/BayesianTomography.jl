@@ -32,7 +32,7 @@ using PrecompileTools: @setup_workload, @compile_workload
     quater_wave_plate = [1 im; im 1] / √2
 
     @compile_workload begin
-        povm = augment_povm(bs_povm, half_wave_plate, quater_wave_plate, probabilities=[1 / 2, 1 / 4, 1 / 4])
+        povm = augment_povm(bs_povm, half_wave_plate, quater_wave_plate, weights=[1 / 2, 1 / 4, 1 / 4])
         li = LinearInversion(povm)
         bi = BayesianInference(povm)
 
