@@ -1,3 +1,8 @@
+"""
+    LinearInversion(povm, basis=gell_man_matrices(size(first(povm), 1)))
+
+Construct a linear inversion method for quantum state tomography.
+"""
 struct LinearInversion{T1,T2}
     pseudo_inv::Matrix{T1}
     basis::Array{T2,3}
@@ -8,6 +13,11 @@ struct LinearInversion{T1,T2}
     end
 end
 
+"""
+    prediction(outcomes, method::LinearInversion)
+
+Predict the quantum state from the outcomes of a tomography experiment using the linear inversion method.
+"""
 function prediction(outcomes, method::LinearInversion)
     xs = method.pseudo_inv * vec(normalize(outcomes, 1))
     linear_combination(xs, method.basis) |> project2density
