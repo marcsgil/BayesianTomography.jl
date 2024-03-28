@@ -16,7 +16,7 @@ end
 """
     prediction(outcomes, method::LinearInversion)
 
-Predict the quantum state from the outcomes of a tomography experiment using the linear inversion method.
+Predict the quantum state from the outcomes of a tomography experiment using the [`LinearInversion`](@ref) method.
 """
 function prediction(outcomes, method::LinearInversion)
     xs = method.pseudo_inv * vec(normalize(outcomes, 1))

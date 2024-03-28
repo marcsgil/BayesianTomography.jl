@@ -10,7 +10,7 @@ The package is registered in the Julia General registry and can be installed wit
 
 Possibly the simplest setup for quantum state tomography is the tomography of the polarization state of a single photon, as illustrated bellow.
 
-![Polarization Setup](../images/polarization_setup.jpeg)
+![Polarization Setup](images/polarization_setup.jpeg)
 
 The following code snippet demonstrates how this can be modeled in the package:
 

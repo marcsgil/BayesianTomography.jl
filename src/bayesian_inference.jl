@@ -216,22 +216,6 @@ function reduced_representation(povm, outcomes)
 end
 
 """
-    maximally_mixed_state(d, ::Type{T}) where {T}
-
-Returns the maximally mixed state of dimension `d`, represented as a vector of projections in the generalized Gell-Mann basis.
-
-The maximally mixed state is defined as `ρ = I / d`.
-
-Se also [`gell_man_basis`](@ref).
-"""
-function maximally_mixed_state(d, ::Type{T}) where {T}
-    x = zeros(T, d^2)
-    x[begin] = 1 / √d
-    x
-end
-
-
-"""
     prediction(outcomes, method::BayesianInference{T};
         verbose=false,
         σ=T(1e-2),
@@ -241,7 +225,7 @@ end
         nwarm=10^3,
         chain=nothing) where {T}
 
-Perform a Bayesian inference on the given `outcomes` using the Bayesian inference `method`.
+Perform a Bayesian inference on the given `outcomes` using the [`BayesianInference`](@ref) `method`.
 
 # Arguments
 

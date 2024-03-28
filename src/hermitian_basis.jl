@@ -130,8 +130,8 @@ The off-diagonal matrices follow the order given by [`triangular_indices`](@ref)
 - A 3D array of Gell-Mann matrices. The last dimension is the index of the matrix in the basis.
 
 # Examples
-```jldoctet
-gell_man_matrices(2,include_identity=false)
+```jldoctest
+julia> gell_man_matrices(2,include_identity=false)
 2×2×3 Array{ComplexF32, 3}:
 [:, :, 1] =
       0.0+0.0im  0.707107+0.0im

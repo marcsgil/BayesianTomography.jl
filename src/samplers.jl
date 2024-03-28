@@ -13,6 +13,8 @@ end
 
 Sample `n_samples` from `type`.
 
+If `n_samples` is not provided, a single sample is returned.
+
 Possible values for type are [`HaarUnitary`](@ref), [`HaarVector`](@ref), [`Simplex`](@ref), [`ProductMeasure`](@ref), and [`GinibreEnsamble`](@ref).
 """
 function sample(type::HaarUnitary, n_samples)

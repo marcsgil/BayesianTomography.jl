@@ -18,11 +18,11 @@ export sample, HaarUnitary, HaarVector, Simplex, ProductMeasure, GinibreEnsamble
 include("utils.jl")
 export simulate_outcomes, simulate_outcomes!, fidelity, project2density, project2pure,
     linear_combination, linear_combination!, isposdef!,
-    real_orthogonal_projection, orthogonal_projection, cond
+    real_orthogonal_projection, orthogonal_projection, cond, maximally_mixed_state
 
 include("bayesian_inference.jl")
 include("linear_inversion.jl")
-export BayesianInference, LinearInversion, prediction, maximally_mixed_state
+export BayesianInference, LinearInversion, prediction
 
 using PrecompileTools: @setup_workload, @compile_workload
 

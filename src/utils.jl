@@ -158,3 +158,18 @@ function cond(povm::Union{AbstractArray{T},AbstractMatrix{T}}, p::Real=2) where 
     A = stack(F -> real_orthogonal_projection(F, set), povm, dims=1)
     cond(A, p)
 end
+
+"""
+    maximally_mixed_state(d, ::Type{T}) where {T}
+
+Returns the maximally mixed state of dimension `d`, represented as a vector of projections in the generalized Gell-Mann basis.
+
+The maximally mixed state is defined as `ρ = I / d`.
+
+Se also [`gell_man_matrices`](@ref).
+"""
+function maximally_mixed_state(d, ::Type{T}) where {T}
+    x = zeros(T, d^2)
+    x[begin] = 1 / √d
+    x
+end
