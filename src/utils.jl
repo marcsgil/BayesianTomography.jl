@@ -120,9 +120,7 @@ end
 Calculate the linear combination of the elements of `set` with the coefficients `xs`.
 """
 function linear_combination(xs, set)
-    ρ = Array{eltype(set)}(undef, size(set, 1), size(set, 2))
-    linear_combination!(ρ, xs, set)
-    ρ
+    sum(x * Ω for (x, Ω) ∈ zip(xs, eachslice(set, dims=ndims(set))))
 end
 
 """
@@ -154,7 +152,7 @@ Calculate the condition number of the linear transformation associated with the 
 """
 function cond(povm::Union{AbstractArray{T},AbstractMatrix{T}}, p::Real=2) where {T<:AbstractMatrix}
     d = size(first(povm), 1)
-    set = gell_man_matrices(d)
+    set = gell_mann_matrices(d)
     A = stack(F -> real_orthogonal_projection(F, set), povm, dims=1)
     cond(A, p)
 end
@@ -166,7 +164,7 @@ Returns the maximally mixed state of dimension `d`, represented as a vector of p
 
 The maximally mixed state is defined as `ρ = I / d`.
 
-Se also [`gell_man_matrices`](@ref).
+Se also [`gell_mann_matrices`](@ref).
 """
 function maximally_mixed_state(d, ::Type{T}) where {T}
     x = zeros(T, d^2)

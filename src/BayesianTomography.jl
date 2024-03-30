@@ -4,7 +4,7 @@ using Distributions, OnlineStats, Tullio, LinearAlgebra, StatsBase, Random
 import LinearAlgebra: isposdef!, isposdef, cond
 
 include("hermitian_basis.jl")
-export gell_man_matrices, basis_decomposition, Z_matrix, X_matrix, Y_matrix, triangular_indices
+export gell_mann_matrices, basis_decomposition, Z_matrix, X_matrix, Y_matrix, triangular_indices
 
 include("augmentation.jl")
 export compose_povm, unitary_transform, unitary_transform!, augment_povm

@@ -16,7 +16,7 @@ function triangular_indices(d)
 end
 
 """
-X_matrix(j, k, d, T=ComplexF32)
+    X_matrix(j, k, d, ::Type{T}=ComplexF32) where {T<:Union{Real,Complex}}
 
 Compute the real off diagonal matrix of the generalized Gell-Mann matrices in dimension `d`.
 
@@ -41,7 +41,7 @@ function X_matrix(j, k, d, ::Type{T}=ComplexF32) where {T<:Union{Real,Complex}}
 end
 
 """
-X_matrix(j, k, d, T=ComplexF32)
+    Y_matrix(j, k, d, ::Type{T}=ComplexF32) where {T<:Complex}
 
 Compute the imaginary off diagonal matrix of the generalized Gell-Mann matrices in dimension `d`.
 
@@ -66,7 +66,7 @@ function Y_matrix(j, k, d, ::Type{T}=ComplexF32) where {T<:Complex}
 end
 
 """
-    Z_matrix(j, d, T=ComplexF32)
+    Z_matrix(j, d, ::Type{T}=ComplexF32) where {T<:Union{Real,Complex}}
 
 Compute the `j`'th diagonal matrix of the generalized Gell-Mann matrices in dimension `d`.
 
@@ -110,7 +110,7 @@ function Z_matrix(j, d, ::Type{T}=ComplexF32) where {T<:Union{Real,Complex}}
 end
 
 """
-    gell_man_matrices(d; include_identity=true)
+    gell_mann_matrices(d, ::Type{T}=ComplexF32; include_identity=true) where {T<:Complex}
 
 Generate a set of Gell-Mann matrices of dimension `d`. 
 
@@ -131,7 +131,7 @@ The off-diagonal matrices follow the order given by [`triangular_indices`](@ref)
 
 # Examples
 ```jldoctest
-julia> gell_man_matrices(2,include_identity=false)
+julia> gell_mann_matrices(2,include_identity=false)
 2×2×3 Array{ComplexF32, 3}:
 [:, :, 1] =
       0.0+0.0im  0.707107+0.0im
@@ -146,7 +146,7 @@ julia> gell_man_matrices(2,include_identity=false)
       0.0+0.0im  -0.707107+0.0im
 ```
 """
-function gell_man_matrices(d, ::Type{T}=ComplexF32; include_identity=true) where {T<:Complex}
+function gell_mann_matrices(d, ::Type{T}=ComplexF32; include_identity=true) where {T<:Complex}
     f(x) = x + include_identity
     result = Array{T,3}(undef, d, d, d^2 - 1 + include_identity)
 
@@ -167,7 +167,7 @@ function gell_man_matrices(d, ::Type{T}=ComplexF32; include_identity=true) where
 end
 
 """
-    basis_decomposition(Ω, basis=gell_man_matrices(d))
+    basis_decomposition(Ω, basis=gell_mann_matrices(d))
 
 Decompose the array `Ω` in the provided orthonormal basis.
 
@@ -176,6 +176,6 @@ If no basis is provided, the Gell-Mann matrices of appropriate dimension are use
 If `Ω` has dimension d, then `basis` should be an array with dimesnion `d+1` with the last 
 dimension indexing the basis elements.
 """
-function basis_decomposition(Ω, basis=gell_man_matrices(d, eltype(Ω)))
+function basis_decomposition(Ω, basis=gell_mann_matrices(d, eltype(Ω)))
     [real(Ω ⋅ Ω′) for Ω′ ∈ eachslice(basis, dims=ndims(basis))]
 end

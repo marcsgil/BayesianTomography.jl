@@ -122,7 +122,7 @@ function step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function, paramet
 end
 
 """
-    sample_markov_chain(ℓπ, x₀::Vector{T}, nsamples, nwarm;
+    sample_markov_chain(ℓπ, x₀::Vector{T}, nsamples, nwarm, basis;
         verbose=false,
         σ=oftype(T, 1e-2),
         target=0.574,
@@ -131,7 +131,7 @@ end
 
 Sample a Markov chain to sample the posterior of a quantum state tomography experiment using the MALA algorithm.
 """
-function sample_markov_chain(ℓπ, x₀::Vector{T}, nsamples, nwarm;
+function sample_markov_chain(ℓπ, x₀::Vector{T}, nsamples, nwarm, basis;
     verbose=false,
     σ=oftype(T, 1e-2),
     target=0.574,
@@ -143,7 +143,7 @@ function sample_markov_chain(ℓπ, x₀::Vector{T}, nsamples, nwarm;
     d = Int(√L)
 
     ρ = Matrix{complex(T)}(undef, d, d)
-    basis = gell_man_matrices(d)
+
 
     @assert x₀[1] ≈ 1 / √d "Initial state must be a valid density matrix. The first element must be 1/√d."
     @assert isposdef!(ρ, x₀, basis) "Initial state must be a valid density matrix. It must be positive semidefinite."
@@ -178,18 +178,20 @@ function sample_markov_chain(ℓπ, x₀::Vector{T}, nsamples, nwarm;
 end
 
 """
-    BayesianInference(povm::AbstractArray{Matrix{T}}) where {T}
+    BayesianInference(povm::AbstractArray{Matrix{T}},
+        basis=gell_mann_matrices(size(first(povm), 1), complex(T))) where {T}
 
 Create a Bayesian inference object from a POVM.
 
 This is passed to the [`prediction`](@ref) method in order to perform the Bayesian inference.
 """
-struct BayesianInference{T<:Real}
-    povm::Matrix{T}
-    function BayesianInference(povm::AbstractArray{Matrix{T}}) where {T}
-        basis = gell_man_matrices(size(first(povm), 1))
+struct BayesianInference{T1<:Real,T2<:Union{Real,Complex}}
+    povm::Matrix{T1}
+    basis::Array{T2,3}
+    function BayesianInference(povm::AbstractArray{Matrix{T}},
+        basis=gell_mann_matrices(size(first(povm), 1), complex(T))) where {T}
         f(F) = real_orthogonal_projection(F, basis)
-        new{real(T)}(stack(f, povm, dims=1))
+        new{real(T),complex(T)}(stack(f, povm, dims=1), basis)
     end
 end
 
@@ -258,11 +260,12 @@ function prediction(outcomes, method::BayesianInference{T};
 
     d = Int(√size(reduced_povm, 2))
 
-
     cache1 = similar(reduced_outcomes, float(eltype(reduced_outcomes)))
     cache2 = similar(cache1)
     posterior(x, ∇ℓπ) = log_likelihood(reduced_outcomes, reduced_povm, x, ∇ℓπ, cache1, cache2) + log_prior(x)
-    stats = sample_markov_chain(posterior, x₀, nsamples, nwarm; verbose, σ, chain)
+    stats = sample_markov_chain(posterior, x₀, nsamples, nwarm, method.basis; verbose, σ, chain)
 
-    return linear_combination(mean(stats), gell_man_matrices(d)), cov(stats)
+    μ = mean(stats)
+    Σ = cov(stats)
+    linear_combination(μ, method.basis), μ, Σ
 end

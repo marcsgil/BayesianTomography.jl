@@ -1,12 +1,12 @@
 """
-    LinearInversion(povm, basis=gell_man_matrices(size(first(povm), 1)))
+    LinearInversion(povm, basis=gell_mann_matrices(size(first(povm), 1)))
 
 Construct a linear inversion method for quantum state tomography.
 """
 struct LinearInversion{T1,T2}
     pseudo_inv::Matrix{T1}
     basis::Array{T2,3}
-    function LinearInversion(povm, basis=gell_man_matrices(size(first(povm), 1)))
+    function LinearInversion(povm, basis=gell_mann_matrices(size(first(povm), 1)))
         pseudo_inv = stack(F -> real_orthogonal_projection(F, basis), povm, dims=1) |> pinv
         T = eltype(pseudo_inv)
         new{T,complex(T)}(pseudo_inv, basis)
