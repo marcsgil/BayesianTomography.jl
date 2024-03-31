@@ -25,7 +25,7 @@ triangular_indices
 X_matrix
 Y_matrix
 Z_matrix
-gell_man_matrices
+gell_mann_matrices
 basis_decomposition
 ```
 

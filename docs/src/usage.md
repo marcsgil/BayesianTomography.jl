@@ -122,3 +122,33 @@ plot(obs, mean(fids, dims=2);
     yticks = .9:.01:1,
     linewidth=3)
 ```
+
+As suggested by the call `σ, _ = prediction(outcomes, mthd)`, the Bayesian inference method returns more values. By calling it as `σ, xs, Σ  = prediction(outcomes, mthd)`, we get the projection `xs` of the quantum state in the space of the generalized Gell-Mann matrices, and the covariance matrix `Σ` of the estimation. This can be used to calculate the error bars of the estimation, for example:
+
+```@example bayesian_inference
+using FiniteDifferences, LinearAlgebra
+
+# Extended fidelity function that takes the projection xs as input
+function BayesianTomography.fidelity(xs::AbstractVector, ρ::AbstractMatrix, method)
+    # method.basis is the basis of the projection
+    σ = linear_combination(xs, method.basis)
+    fidelity(ρ, σ)
+end
+
+# Gradient of the fidelity function using finite differences
+function ∇fidelity(xs::AbstractVector, ρ::AbstractMatrix, method)
+    f = x -> fidelity(x, ρ, method)
+    grad(central_fdm(5, 1), f, xs)[1]
+end
+
+ρ = sample(ProductMeasure(2))
+outcomes = simulate_outcomes(ρ, povm, 100)
+mthd = BayesianInference(povm)
+σ, xs, Σ = prediction(outcomes, mthd)
+
+# Calculate the gradient of the fidelity function
+∇f = ∇fidelity(xs, ρ, mthd)
+
+# Calculate the uncertainty in the prediction
+dot(∇f, Σ, ∇f)
+```

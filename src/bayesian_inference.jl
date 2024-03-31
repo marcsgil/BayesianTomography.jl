@@ -243,9 +243,8 @@ Perform a Bayesian inference on the given `outcomes` using the [`BayesianInferen
 
 # Returns
 
-A tuple with the mean state and the covariance matrix.
+A tuple with the mean state, its projection in `method.basis` and the covariance matrix.
 The mean state is already returned in matrix form.
-The covariance matrix is written in terms of the projections in the generalized Gell-Mann basis.
 """
 function prediction(outcomes, method::BayesianInference{T};
     verbose=false,
@@ -257,8 +256,6 @@ function prediction(outcomes, method::BayesianInference{T};
     chain=nothing) where {T}
 
     reduced_povm, reduced_outcomes = reduced_representation(method.povm, outcomes)
-
-    d = Int(√size(reduced_povm, 2))
 
     cache1 = similar(reduced_outcomes, float(eltype(reduced_outcomes)))
     cache2 = similar(cache1)

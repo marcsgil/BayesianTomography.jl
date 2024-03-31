@@ -1,4 +1,4 @@
-using Documenter, BayesianTomography
+using Documenter, BayesianTomography, LinearAlgebra
 
 ENV["GKSwstype"] = "100"
 using Plots

@@ -1,6 +1,8 @@
 [deps]
 BayesianTomography = "ae1f9aa5-51e1-43df-aa72-b1a458b33a1f"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 PGFPlotsX = "8314cec4-20b6-5062-9cdb-752b83310925"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
