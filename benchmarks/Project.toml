@@ -1,0 +1,5 @@
+[deps]
+BayesianTomography = "ae1f9aa5-51e1-43df-aa72-b1a458b33a1f"
+Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
+FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
+ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
