@@ -12,3 +12,7 @@ makedocs(
         "usage.md",
         "theory.md",
         "api.md"])
+
+deploydocs(
+    repo="https://github.com/marcsgil/BayesianTomography.jl",
+)
