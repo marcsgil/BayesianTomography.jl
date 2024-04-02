@@ -11,3 +11,11 @@ PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Tullio = "bc48ee85-29a4-5162-ae0b-a64e1601d4bc"
+
+[compat]
+Distributions = "0.25"
+OnlineStats = "1.6"
+PrecompileTools = "1.2"
+StatsBase = "0.34"
+Tullio = "0.3"
+julia = "1.10"
