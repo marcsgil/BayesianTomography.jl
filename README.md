@@ -1,3 +1,5 @@
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://marcsgil.github.io/BayesianTomography.jl/stable/)
+
 # Introduction
 
 This package provides tools to perform quantum state tomography. It is designed to be flexible and easy to use, with a focus on providing a simple interface for common tasks. As its name suggests, its flagship feature is the ability to perform Bayesian quantum state tomography, but it also provides an interface for the simple linear inversion method.
