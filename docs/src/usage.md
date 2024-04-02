@@ -2,7 +2,7 @@
 
 Possibly the simplest setup for quantum state tomography is the tomography of the polarization state of a single photon, as illustrated bellow.
 
-![Polarization Setup](images/polarization_setup.jpeg)
+![Polarization Setup](assets/polarization_setup.jpeg)
 
 The following code snippet demonstrates how this can be modeled in the package:
 
@@ -39,7 +39,7 @@ An example of a POVM is the one performed by a polarizing beam splitter (PBS):
 ```julia
 bs_povm = [[1.0+im 0; 0 0], [0 0; 0 1]] #POVM for a polarazing beam splitter
 ```
-This POVM has two outcomes, corresponding to the two possible polarizations of the photon. The first matrix corresponds to the horizontal polarization, and the second to the vertical polarization. Nonetheless, this POVM is not enough to determine the polarization state of a photon. It is called informationally incomplete. To do that, we need to add the action of a half-wave plate and a quarter-wave plate to the POVM. This is done by the [`augment_povm`](@ref) function:
+This POVM has two outcomes, corresponding to the vertical and horizontal polarizations. Nonetheless, this POVM is not enough to completely determine an arbitrary state (it is called informationally incomplete). To do that, we need to add the action of a half-wave plate and a quarter-wave plate to the POVM. This is done by the [`augment_povm`](@ref) function:
 ```julia
 half_wave_plate = [1 1; 1 -1] / √2 #Unitary matrix for a half-wave plate
 quarter_wave_plate = [1 im; im 1] / √2 #Unitary matrix for a quarter-wave plate
@@ -49,7 +49,7 @@ This is done because a single PBS is not enough to measure the polarization stat
 povm = augment_povm(bs_povm, half_wave_plate, quater_wave_plate, 
                         weights=[1 / 2, 1 / 4, 1 / 4])
 ```
-The half-wave and quarter-wave plates are represented by an unitary, and the POVM is augmented by the action $F\mapsto U^\dagger F U$ of these unitaries. The `weights` argument specifies the weight given for each POVM. In this case, the photons going to PBS1 only pass in through a single BS, which corresponds to a probability of $1/2$. The photons going to PBS2 and PBS3 pass in two BSs, which corresponds to a probability of $1/4$ for each.
+The half-wave and quarter-wave plates are represented by a unitary, and the POVM is augmented by the action $F\mapsto U^\dagger F U$ of these unitaries. The `weights` argument specifies the weight given for each POVM. In this case, the photons going to PBS1 only pass in through a single BS, which corresponds to a probability of $1/2$. The photons going to PBS2 and PBS3 pass in two BSs, which corresponds to a probability of $1/4$ for each.
 
 Now, we can [`sample`](@ref) a random quantum state from the [`ProductMeasure`](@ref) to be used as an example:
 ```julia
@@ -123,7 +123,7 @@ plot(obs, mean(fids, dims=2);
     linewidth=3)
 ```
 
-As suggested by the call `σ, _ = prediction(outcomes, mthd)`, the Bayesian inference method returns more values. By calling it as `σ, xs, Σ  = prediction(outcomes, mthd)`, we get the projection `xs` of the quantum state in the space of the generalized Gell-Mann matrices, and the covariance matrix `Σ` of the estimation. This can be used to calculate the error bars of the estimation, for example:
+As suggested by the call `σ, _ = prediction(outcomes, mthd)`, the Bayesian inference method returns more values. By calling it as `σ, xs, Σ  = prediction(outcomes, mthd)`, we get the projection `xs` of the quantum state in the space of the generalized Gell-Mann matrices, and the associated covariance matrix `Σ`. This can be used to calculate the error bars of the estimation, for example:
 
 ```@example bayesian_inference
 using FiniteDifferences, LinearAlgebra

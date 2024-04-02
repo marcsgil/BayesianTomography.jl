@@ -40,6 +40,10 @@ where ``n_m`` is the number of times outcome ``m`` was observed. The prior distr
 
 Bayesian inference does not provide a single estimate of the state, but a full distribution. The mean of the distribution is, in a sense, the best estimate of the state [^1], and the variance gives an idea of the uncertainty of the estimate. Directly calculating the posterior distribution is infeasible, as it requires the computation of the evidence, which is a high-dimensional integral. The alternative is to sample the posterior distribution using Markov Chain Monte Carlo (MCMC) methods. The package provides an implementation of the Metropolis Adjusted Langevin Algorithm (MALA) [^2] [^3] to sample the posterior distribution.
 
+![](assets/random_walk.mp4)
+
+As shown in the video above, MALA generates a random walk in the space of valid density operators (we reject all proposals falling outside this set) whose statistics are given by the desired posterior distribution.
+
 
 [^1]: [Blume-Kohout, Robin. "Optimal, reliable estimation of quantum states." New Journal of Physics 12.4 (2010): 043034.](https://iopscience.iop.org/article/10.1088/1367-2630/12/4/043034/meta)
 [^2]: [Karagulyan, Avetik. Sampling with the Langevin Monte-Carlo. Diss. Institut polytechnique de Paris, 2021.](https://theses.hal.science/tel-03267728/file/103230_KARAGULYAN_2021_archivage.pdf)
