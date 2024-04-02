@@ -2,7 +2,6 @@ using Documenter, BayesianTomography, LinearAlgebra
 
 ENV["GKSwstype"] = "100"
 using Plots
-pgfplotsx()
 Plots.scalefontsizes(1.5)
 
 makedocs(
