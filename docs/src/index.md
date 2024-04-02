@@ -4,7 +4,7 @@ This package provides tools to perform quantum state tomography. It is designed 
 
 ## Installation
 
-The package is registered in the Julia General registry and can be installed with the Julia package manager. From the Julia REPL, type `]` to enter the Pkg REPL mode and run `add BayesianTomography`.
+The package is almost registered in the Julia General registry and can be installed with the Julia package manager. From the Julia REPL, type `]` to enter the Pkg REPL mode and run `add BayesianTomography`.
 
 ## Contents
 
