@@ -1,4 +1,5 @@
-[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://marcsgil.github.io/BayesianTomography.jl/stable/)
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://marcsgil.github.io/BayesianTomography.jl/dev/)
+[![CI](https://github.com/marcsgil/BayesianTomography.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/marcsgil/BayesianTomography.jl/actions/workflows/CI.yml)
 
 # Introduction
 
