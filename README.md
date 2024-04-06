@@ -1,5 +1,6 @@
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://marcsgil.github.io/BayesianTomography.jl/dev/)
 [![CI](https://github.com/marcsgil/BayesianTomography.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/marcsgil/BayesianTomography.jl/actions/workflows/CI.yml)
+[![DOI](https://zenodo.org/badge/740175693.svg)](https://zenodo.org/doi/10.5281/zenodo.10936092)
 
 # Introduction
 

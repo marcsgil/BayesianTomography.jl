@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Gil de Oliveira"
+  given-names: "Marcos"
+  orcid: "https://orcid.org/0009-0006-4225-8706"
+title: "BayesianTomography.jl: A Julia package for Bayesian quantum state tomography"
+version: 0.1.1
+doi: 10.5281/zenodo.10936093
+date-released: 2024-04-06
+url: "https://github.com/marcsgil/BayesianTomography.jl"
