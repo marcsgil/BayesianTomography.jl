@@ -11,3 +11,6 @@ This package was developed as part of the following publication: [Quantum tomogr
 ## Installation
 
 The package is registered in the Julia General registry and can be installed with the Julia package manager. From the Julia REPL, type `]` to enter the Pkg REPL mode and run `add BayesianTomography`.
+
+## Usage
+For a quick start, check the [documentation](https://marcsgil.github.io/BayesianTomography.jl/dev/usage/).

@@ -118,7 +118,7 @@ plot(obs, mean(fids, dims=2);
     ylabel="Mean Fidelity", 
     label = false,
     xaxis=:log2,
-    xticks=obs,
+    xticks=(obs, string.(obs)),
     yticks = .9:.01:1,
     linewidth=3)
 ```
