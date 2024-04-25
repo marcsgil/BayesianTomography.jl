@@ -11,9 +11,9 @@ import Random #hide
 Random.seed!(1234) #hide
 using BayesianTomography
 
-bs_povm = [[1.0+im 0; 0 0], [0 0; 0 1]] #POVM for a polarazing beam splitter
+bs_povm = [[1.0 0im; 0 0], [0 0; 0 1]] #POVM for a polarazing beam splitter
 half_wave_plate = [1 1; 1 -1] / √2 #Unitary matrix for a half-wave plate
-quarter_wave_plate = [1 im; im 1] / √2 #Unitary matrix for a quarter-wave plate
+quarter_wave_plate = [1 im; 1 -im] / √2 #Unitary matrix for a quarter-wave plate
 
 """Augment the bs_povm with the action of half-wave plate and the quarter-wave plate. 
 This is done because a single PBS is not enough to measure the polarization state of a photon."""
@@ -37,12 +37,12 @@ Let us break down the code snippet. First, one need to specify the measurement t
 
 An example of a POVM is the one performed by a polarizing beam splitter (PBS):
 ```julia
-bs_povm = [[1.0+im 0; 0 0], [0 0; 0 1]] #POVM for a polarazing beam splitter
+bs_povm = [[1.0 0im; 0 0], [0 0; 0 1]] #POVM for a polarazing beam splitter
 ```
 This POVM has two outcomes, corresponding to the vertical and horizontal polarizations. Nonetheless, this POVM is not enough to completely determine an arbitrary state (it is called informationally incomplete). To do that, we need to add the action of a half-wave plate and a quarter-wave plate to the POVM. This is done by the [`augment_povm`](@ref) function:
 ```julia
 half_wave_plate = [1 1; 1 -1] / √2 #Unitary matrix for a half-wave plate
-quarter_wave_plate = [1 im; im 1] / √2 #Unitary matrix for a quarter-wave plate
+quarter_wave_plate = [1 im; 1 -im] / √2 #Unitary matrix for a quarter-wave plate
 
 """Augment the bs_povm with the action of half-wave plate and the quarter-wave plate. 
 This is done because a single PBS is not enough to measure the polarization state of a photon."""
@@ -79,9 +79,9 @@ using Random
 Random.seed!(1234)
 using BayesianTomography
 
-bs_povm = [[1.0+im 0; 0 0], [0 0; 0 1]]
+bs_povm = [[1.0 0im; 0 0], [0 0; 0 1]]
 half_wave_plate = [1 1; 1 -1] / √2
-quarter_wave_plate = [1 im; im 1] / √2
+quarter_wave_plate = [1 im; 1 -im] / √2
 
 povm = augment_povm(bs_povm, half_wave_plate, quarter_wave_plate, 
                         weights=[1 / 2, 1 / 4, 1 / 4])
