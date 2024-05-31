@@ -24,7 +24,7 @@ function simulate_outcomes(probs, N; atol=1e-3)
     @assert minimum(probs) ≥ -atol "The probabilities must be non-negative"
     S = sum(probs)
     @assert isapprox(S, 1; atol) "The sum of the probabilities is not 1, but $S"
-    dist = Categorical(map(x -> x > 0 ? x : 0, normalize(vec(probs), 1)))
+    dist = Categorical(map(x -> x > 0 ? x : zero(x), normalize(vec(probs), 1)))
 
     complete_representation(History(rand(dist, N)), length(probs))
 end
@@ -43,7 +43,7 @@ function simulate_outcomes!(probs, N; atol=1e-3)
     S = sum(probs)
     @assert isapprox(S, 1; atol) "The sum of the probabilities is not 1, but $S"
 
-    dist = Categorical(map(x -> x > 0 ? x : 0, normalize(vec(probs), 1)))
+    dist = Categorical(map(x -> x > 0 ? x : zero(x), normalize(vec(probs), 1)))
     samples = rand(dist, N)
 
     Threads.@threads for n in eachindex(probs)
