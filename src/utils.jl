@@ -171,3 +171,20 @@ function maximally_mixed_state(d, ::Type{T}) where {T}
     x[begin] = 1 / √d
     x
 end
+
+function fisher_information!(I, probs, C::AbstractArray{T}) where {T<:Union{Real,Complex}}
+    @tullio I[i, j] = C[i, k] * C[j, k] / probs[k]
+end
+
+function fisher_information(probs, C::AbstractArray{T}) where {T<:Union{Real,Complex}}
+    I = similar(C, size(C, 1), size(C, 1))
+    fisher_information!(I, probs, C)
+end
+
+function fisher_information(ρ, povm)
+    P = [real(ρ ⋅ E) for E in povm]
+    normalize!(P, 1)
+    basis = gell_mann_matrices(size(ρ, 1), include_identity=false)
+    C = hcat((real_orthogonal_projection(E, basis) for E in povm)...)
+    @tullio I[i, j] := C[i, k] * C[j, k] / P[k]
+end
