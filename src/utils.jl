@@ -96,7 +96,10 @@ Calculate the orthogonal projection of `ρ` onto `set`.
 `set` is an array with one more dimension than `ρ`.
 """
 function orthogonal_projection(ρ, set)
-    @assert ndims(ρ) + 1 == ndims(set)
+    @assert ndims(ρ) + 1 == ndims(set) """
+    \nndims(ρ) + 1 != ndims(set) 
+    Got ndims(ρ) = $(ndims(ρ)) and ndims(set) = $(ndims(set))
+    """
     [ρ ⋅ Ω / (Ω ⋅ Ω) for Ω ∈ eachslice(set, dims=ndims(set))]
 end
 
@@ -110,7 +113,10 @@ Calculate the real part of the orthogonal projection of `ρ` onto `set`.
 This function is useful when the projection is expected to be real, but numerical errors may introduce small imaginary parts.
 """
 function real_orthogonal_projection(ρ, set)
-    @assert ndims(ρ) + 1 == ndims(set)
+    @assert ndims(ρ) + 1 == ndims(set) """
+    \nndims(ρ) + 1 != ndims(set) 
+    Got ndims(ρ) = $(ndims(ρ)) and ndims(set) = $(ndims(set))
+    """
     [real(ρ ⋅ Ω / (Ω ⋅ Ω)) for Ω ∈ eachslice(set, dims=ndims(set))]
 end
 
@@ -172,19 +178,39 @@ function maximally_mixed_state(d, ::Type{T}) where {T}
     x
 end
 
-function fisher_information!(I, probs, C::AbstractArray{T}) where {T<:Union{Real,Complex}}
+function fisher_information!(I, probs, C::AbstractMatrix{T}) where {T<:Union{Real,Complex}}
     @tullio I[i, j] = C[i, k] * C[j, k] / probs[k]
 end
 
-function fisher_information(probs, C::AbstractArray{T}) where {T<:Union{Real,Complex}}
+function fisher_information(inv_probs, C::AbstractMatrix{T}) where {T<:Union{Real,Complex}}
     I = similar(C, size(C, 1), size(C, 1))
-    fisher_information!(I, probs, C)
+    fisher_information!(I, inv_probs, C)
 end
 
-function fisher_information(ρ, povm)
-    P = [real(ρ ⋅ E) for E in povm]
-    normalize!(P, 1)
+function fisher_information(ρ::AbstractMatrix, povm)
+    probs = vec([real(ρ ⋅ E) for E in povm])
+    idxs = findall(x -> x > 0, probs)
+    probs = probs[idxs]
+    normalize!(probs, 1)
     basis = gell_mann_matrices(size(ρ, 1), include_identity=false)
+    C = hcat((real_orthogonal_projection(E, basis) for E in povm[idxs])...)
+    fisher_information(probs, C)
+end
+
+function fisher_information(ρs::AbstractArray{T,3}, povm) where {T<:Union{Real,Complex}}
+    basis = gell_mann_matrices(size(ρs, 1), include_identity=false)
     C = hcat((real_orthogonal_projection(E, basis) for E in povm)...)
-    @tullio I[i, j] := C[i, k] * C[j, k] / P[k]
+
+    I = similar(C, size(C, 1), size(C, 1), size(ρs, 3))
+
+    Threads.@threads for n ∈ axes(ρs, 3)
+        probs = vec([real(view(ρs, :, :, n) ⋅ E) for E in povm])
+        idxs = findall(x -> x > 0, probs)
+        _probs = probs[idxs]
+        normalize!(_probs, 1)
+        _C = C[:, idxs]
+        fisher_information!(view(I, :, :, n), _probs, _C)
+    end
+
+    I
 end
