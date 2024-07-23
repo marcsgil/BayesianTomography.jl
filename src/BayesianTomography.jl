@@ -40,7 +40,7 @@ using PrecompileTools: @setup_workload, @compile_workload
         ρ = sample(GinibreEnsamble(2))
 
         outcomes = simulate_outcomes(ρ, povm, 1)
-        σ = prediction(outcomes, li)
+        σ, _ = prediction(outcomes, li)
         fidelity(ρ, σ)
 
         outcomes = simulate_outcomes(ρ, povm, 1)
@@ -49,7 +49,8 @@ using PrecompileTools: @setup_workload, @compile_workload
         ψ = sample(HaarVector(2))
 
         outcomes = simulate_outcomes(ψ, povm, 1)
-        φ = prediction(outcomes, li) |> project2pure
+        φ, _ = prediction(outcomes, li)
+        φ = project2pure(φ)
         fidelity(ψ, φ)
 
         outcomes = simulate_outcomes(ψ, povm, 1)
