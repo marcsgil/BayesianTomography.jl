@@ -263,6 +263,6 @@ function prediction(outcomes, method::BayesianInference{T};
     stats = sample_markov_chain(posterior, x₀, nsamples, nwarm, method.basis; verbose, σ, chain)
 
     μ = mean(stats)
-    Σ = cov(stats)
+    Σ = cov(stats)[begin+1:end, begin+1:end]
     linear_combination(μ, method.basis), μ, Σ
 end
