@@ -188,11 +188,12 @@ This is passed to the [`prediction`](@ref) method in order to perform the Bayesi
 struct BayesianInference{T1<:Real,T2<:Union{Real,Complex}}
     povm::Matrix{T1}
     basis::Array{T2,3}
-    function BayesianInference(povm::AbstractArray{Matrix{T}},
-        basis=gell_mann_matrices(size(first(povm), 1), complex(T))) where {T}
-        f(F) = real_orthogonal_projection(F, basis)
-        new{real(T),complex(T)}(stack(f, povm, dims=1), basis)
-    end
+end
+
+function BayesianInference(povm::AbstractArray{Matrix{T}},
+    basis=gell_mann_matrices(size(first(povm), 1), complex(T))) where {T}
+    f(F) = real_orthogonal_projection(F, basis)
+    BayesianInference(stack(f, povm, dims=1), basis)
 end
 
 
@@ -246,14 +247,14 @@ Perform a Bayesian inference on the given `outcomes` using the [`BayesianInferen
 A tuple with the mean state, its projection in `method.basis` and the covariance matrix.
 The mean state is already returned in matrix form.
 """
-function prediction(outcomes, method::BayesianInference{T};
+function prediction(outcomes, method::BayesianInference{T1,T2};
     verbose=false,
-    σ=T(1e-2),
-    log_prior=x -> zero(T),
-    x₀=maximally_mixed_state(Int(√size(method.povm, 2)), T),
+    σ=T1(1e-2),
+    log_prior=x -> zero(T1),
+    x₀=maximally_mixed_state(size(method.basis, 1), T1),
     nsamples=10^4,
     nwarm=10^3,
-    chain=nothing) where {T}
+    chain=nothing) where {T1,T2}
 
     reduced_povm, reduced_outcomes = reduced_representation(method.povm, outcomes)
 
@@ -264,5 +265,5 @@ function prediction(outcomes, method::BayesianInference{T};
 
     μ = mean(stats)
     Σ = cov(stats)[begin+1:end, begin+1:end]
-    linear_combination(μ, method.basis), μ, Σ
+    linear_combination(μ, method.basis), μ[begin+1:end], Σ
 end
