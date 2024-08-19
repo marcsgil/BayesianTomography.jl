@@ -188,12 +188,18 @@ This is passed to the [`prediction`](@ref) method in order to perform the Bayesi
 struct BayesianInference{T1<:Real,T2<:Union{Real,Complex}}
     povm::Matrix{T1}
     basis::Array{T2,3}
+    dim::Int
 end
 
-function BayesianInference(povm::AbstractArray{Matrix{T}},
-    basis=gell_mann_matrices(size(first(povm), 1), complex(T))) where {T}
-    f(F) = real_orthogonal_projection(F, basis)
-    BayesianInference(stack(f, povm, dims=1), basis)
+function BayesianInference(povm::Matrix{T}, basis=gell_mann_matrices(Int(√size(povm, 2)), complex(T))) where {T<:Real}
+    dim = Int(√size(povm, 2))
+    BayesianInference(povm, basis, dim)
+end
+
+function BayesianInference(povm::AbstractArray{Matrix{T}}, basis=gell_mann_matrices(size(first(povm),1), complex(T))) where {T}
+    dim = size(first(povm), 1)
+    povm_matrix = stack(Π -> real_orthogonal_projection(Π, basis), vec(povm), dims=1)
+    BayesianInference(povm_matrix, basis, dim)
 end
 
 

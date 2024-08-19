@@ -9,7 +9,6 @@ bi = BayesianInference(povm)
 for ρ ∈ eachslice(sample(GinibreEnsamble(2), 10), dims=3)
     outcomes = simulate_outcomes(ρ, povm, 10^6)
     σ, _ = prediction(outcomes, li)
-    σ = project2density(σ)
     @test fidelity(ρ, σ) ≥ 0.99
 
     outcomes = simulate_outcomes(ρ, povm, 10^4)

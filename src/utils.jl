@@ -178,39 +178,19 @@ function maximally_mixed_state(d, ::Type{T}) where {T}
     x
 end
 
-function fisher_information!(I, probs, C::AbstractMatrix{T}) where {T<:Union{Real,Complex}}
-    @tullio I[i, j] = C[i, k] * C[j, k] / probs[k]
+function fisher!(F, T::AbstractArray, probs)
+    I = findall(x -> x > 0, vec(probs))
+    @tullio F[i, j] = T[I[k], i] * T[I[k], j] / probs[I[k]]
 end
 
-function fisher_information(inv_probs, C::AbstractMatrix{T}) where {T<:Union{Real,Complex}}
-    I = similar(C, size(C, 1), size(C, 1))
-    fisher_information!(I, inv_probs, C)
+function fisher!(F, mthd, θs)
+    probs = get_probs(mthd, θs)
+    fisher!(F, (@view mthd.povm[:, begin+1:end]), probs)
 end
 
-function fisher_information(ρ::AbstractMatrix, povm)
-    probs = vec([real(ρ ⋅ E) for E in povm])
-    idxs = findall(x -> x > 0, probs)
-    probs = probs[idxs]
-    normalize!(probs, 1)
-    basis = gell_mann_matrices(size(ρ, 1), include_identity=false)
-    C = hcat((real_orthogonal_projection(E, basis) for E in povm[idxs])...)
-    fisher_information(probs, C)
-end
-
-function fisher_information(ρs::AbstractArray{T,3}, povm) where {T<:Union{Real,Complex}}
-    basis = gell_mann_matrices(size(ρs, 1), include_identity=false)
-    C = hcat((real_orthogonal_projection(E, basis) for E in povm)...)
-
-    I = similar(C, size(C, 1), size(C, 1), size(ρs, 3))
-
-    Threads.@threads for n ∈ axes(ρs, 3)
-        probs = vec([real(view(ρs, :, :, n) ⋅ E) for E in povm])
-        idxs = findall(x -> x > 0, probs)
-        _probs = probs[idxs]
-        normalize!(_probs, 1)
-        _C = C[:, idxs]
-        fisher_information!(view(I, :, :, n), _probs, _C)
-    end
-
-    I
+function fisher(mthd, θs)
+    D = mthd.dim^2 - 1
+    F = Matrix{eltype(θs)}(undef, D, D)
+    fisher!(F, mthd, θs)
+    F
 end
