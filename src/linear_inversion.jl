@@ -1,37 +1,31 @@
 """
-    LinearInversion(povm)
+    LinearInversion(problem::StateTomographyProblem)
 
 Construct a linear inversion method for quantum state tomography.
 """
-struct LinearInversion{T1<:Real,T2<:Union{Real,Complex}}
-    povm::Matrix{T1}
-    basis::Array{T2,3}
-    dim::Int
-    pseudo_inv::Matrix{T1}
+struct LinearInversion{T}
+    problem::StateTomographyProblem{T}
+    pseudo_inv::Matrix{T}
+    θ_correction::Vector{T}
+    function LinearInversion(problem::StateTomographyProblem{T}) where {T}
+        pseudo_inv = pinv(problem.traceless_povm)
+        θ_correction = pseudo_inv * problem.correction
+        rmul!(θ_correction, -one(T))
+        new{T}(problem, pseudo_inv, θ_correction)
+    end
 end
 
-function LinearInversion(povm::Matrix{T}, basis=gell_mann_matrices(Int(√size(povm, 2)), complex(T))) where {T<:Real}
-    dim = Int(√size(povm, 2))
-    pseudo_inv = pinv(@view povm[:, begin+1:end])
-    LinearInversion(povm, basis, dim, pseudo_inv)
+function prediction!(dest, probabilities::Array{Tp}, method::LinearInversion) where {Tp<:AbstractFloat}
+    T = eltype(dest)
+    copy!(dest, method.θ_correction)
+    mul!(dest, method.pseudo_inv, probabilities, one(T), one(T))
 end
 
-function LinearInversion(povm::Array{Matrix{T}}, basis=gell_mann_matrices(size(first(povm), 1), complex(T))) where {T}
-    dim = size(first(povm), 1)
-    povm_matrix = stack(Π -> real_orthogonal_projection(Π, basis), vec(povm), dims=1)
-    pseudo_inv = pinv(@view povm_matrix[:, begin+1:end])
-    LinearInversion(povm_matrix, basis, dim, pseudo_inv)
-end
-
-function get_probs(mthd, θ)
-    dest = Vector{eltype(θ)}(undef, size(mthd.povm, 1))
-    get_probs!(dest, mthd, θ)
-    dest
-end
-
-function get_probs!(dest::Vector{T}, mthd, θ) where {T}
-    copy!(dest, (@view mthd.povm[:, begin]))
-    mul!(dest, (@view mthd.povm[:, begin+1:end]), θ, one(T), convert(T, mthd.dim^(-1 // 2)))
+function prediction!(dest, outcomes, method::LinearInversion)
+    T = eltype(dest)
+    N = convert(T, 1 / sum(outcomes))
+    copy!(dest, method.θ_correction)
+    mul!(dest, method.pseudo_inv, outcomes, N, one(T))
 end
 
 """
@@ -39,22 +33,13 @@ end
 
 Predict the quantum state from the outcomes of a tomography experiment using the [`LinearInversion`](@ref) method.
 """
-function prediction(outcomes::Vector{T}, method::LinearInversion{T1,T2}) where {T<:AbstractFloat,T1,T2}
-    θs = method.pseudo_inv * outcomes
-    mul!(θs, method.pseudo_inv, view(method.povm, :, 1), convert(T1, -1 / √method.dim), one(T1))
-
-    linear_combination(vcat(convert(T1, 1 / √method.dim), θs), method.basis), θs, covariance(outcomes, method, θs)
+function prediction(outcomes, method::LinearInversion{T}) where {T}
+    θs = Vector{T}(undef, size(method.problem.traceless_povm, 2))
+    prediction!(θs, outcomes, method)
+    density_matrix_reconstruction(θs), θs, covariance(outcomes, method, θs)
 end
 
-function prediction(outcomes::Vector{T}, method::LinearInversion) where {T<:Integer}
-    prediction(normalize(outcomes, 1), method)
-end
-
-function prediction(outcomes::AbstractArray{T}, method::LinearInversion{T1,T2}) where {T<:Real,T1,T2}
-    prediction(vec(outcomes), method)
-end
-
-function covariance(outcomes, method::LinearInversion{T1,T2}, θs) where {T1,T2}
+function covariance(outcomes, method::LinearInversion{T}, θs) where {T}
     """N = sum(outcomes)
     povm = method.povm
 
@@ -72,5 +57,5 @@ function covariance(outcomes, method::LinearInversion{T1,T2}, θs) where {T1,T2}
     end
 
     inv(povm' * povm) * sum_residues / (size(povm, 1) - size(povm, 2))"""
-    rand(T1, method.dim - 1, method.dim - 1)
+    rand(T, method.problem.dim - 1, method.problem.dim - 1)
 end

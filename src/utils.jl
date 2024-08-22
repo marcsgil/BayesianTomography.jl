@@ -89,78 +89,13 @@ function project2pure(ρ)
 end
 
 """
-    orthogonal_projection(ρ, set)
-
-Calculate the orthogonal projection of `ρ` onto `set`.
-
-`set` is an array with one more dimension than `ρ`.
-"""
-function orthogonal_projection(ρ, set)
-    @assert ndims(ρ) + 1 == ndims(set) """
-    \nndims(ρ) + 1 != ndims(set) 
-    Got ndims(ρ) = $(ndims(ρ)) and ndims(set) = $(ndims(set))
-    """
-    [ρ ⋅ Ω / (Ω ⋅ Ω) for Ω ∈ eachslice(set, dims=ndims(set))]
-end
-
-"""
-    real_orthogonal_projection(ρ, set)
-
-Calculate the real part of the orthogonal projection of `ρ` onto `set`.
-
-`set` is an array with one more dimension than `ρ`.
-
-This function is useful when the projection is expected to be real, but numerical errors may introduce small imaginary parts.
-"""
-function real_orthogonal_projection(ρ, set)
-    @assert ndims(ρ) + 1 == ndims(set) """
-    \nndims(ρ) + 1 != ndims(set) 
-    Got ndims(ρ) = $(ndims(ρ)) and ndims(set) = $(ndims(set))
-    """
-    [real(ρ ⋅ Ω / (Ω ⋅ Ω)) for Ω ∈ eachslice(set, dims=ndims(set))]
-end
-
-"""
-    linear_combination(xs, set)
-
-Calculate the linear combination of the elements of `set` with the coefficients `xs`.
-"""
-function linear_combination(xs, set)
-    sum(x * Ω for (x, Ω) ∈ zip(xs, eachslice(set, dims=ndims(set))))
-end
-
-"""
-    linear_combination!(ρ, xs, set)
-
-Calculate the linear combination of the elements of `set` with the coefficients `xs` and store the result in `ρ`.
-"""
-function linear_combination!(ρ, xs, set)
-    fill!(ρ, zero(eltype(set)))
-    for (x, Ω) in zip(xs, eachslice(set, dims=ndims(set)))
-        @. ρ += x * Ω
-    end
-end
-
-"""
     isposdef!(ρ, xs, set)
 
 Calculate the linear combination of the elements of `set` with the coefficients `xs` and check if the result is a positive definite matrix.
 """
-function isposdef!(ρ, xs, set)
-    linear_combination!(ρ, xs, set)
+function isposdef!(ρ, θ)
+    density_matrix_reconstruction!(ρ, θ)
     isposdef!(ρ)
-end
-
-"""
-    cond(povm::Union{AbstractArray{T},AbstractMatrix{T}}, p::Real=2) where {T<:AbstractMatrix}
-
-Calculate the condition number of the linear transformation associated with the `povm`.
-"""
-function cond(povm::Union{AbstractArray{T},AbstractMatrix{T}}, p::Real=2) where {T<:AbstractMatrix}
-    d = size(first(povm), 1)
-    set = gell_mann_matrices(d)
-    A = stack(F -> real_orthogonal_projection(F, set), povm, dims=1)
-    cond(A, p)
 end
 
 """
@@ -178,19 +113,3 @@ function maximally_mixed_state(d, ::Type{T}) where {T}
     x
 end
 
-function fisher!(F, T::AbstractArray, probs)
-    I = findall(x -> x > 0, vec(probs))
-    @tullio F[i, j] = T[I[k], i] * T[I[k], j] / probs[I[k]]
-end
-
-function fisher!(F, mthd, θs)
-    probs = get_probs(mthd, θs)
-    fisher!(F, (@view mthd.povm[:, begin+1:end]), probs)
-end
-
-function fisher(mthd, θs)
-    D = mthd.dim^2 - 1
-    F = Matrix{eltype(θs)}(undef, D, D)
-    fisher!(F, mthd, θs)
-    F
-end
