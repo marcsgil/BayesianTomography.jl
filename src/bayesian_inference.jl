@@ -221,8 +221,9 @@ function prediction(outcomes, method::BayesianInference{T};
     nwarm=10^3,
     chain=nothing) where {T}
 
-    I = findall(!iszero, outcomes)
-    _outcomes = outcomes[I]
+    vec_outcomes = vec(outcomes)
+    I = findall(!iszero, vec_outcomes)
+    _outcomes = vec_outcomes[I]
     _traceless_povm = method.problem.traceless_povm[I, :]
     _correction = method.problem.correction[I]
     buffer1 = similar(_correction)
