@@ -1,61 +1,58 @@
 """
-    log_likelihood(outcomes, povm, x, ∇ℓπ, cache1, cache2)
+    log_likelihood!(∇ℓπ, buffer, outcomes, traceless_povm, correction, θ)
 
-Returns the log-likelihood of the `outcomes` given the `povm` and the state `x`.
+Returns the log-likelihood of the `outcomes` given the `traceless_povm`, `correction` and the state `θ`.
 The gradient of the log-likelihood is stored in `∇ℓπ`.
+`buffer` is an array used to store intermediate results.
 """
-function log_likelihood(outcomes, povm, x, ∇ℓπ, cache1, cache2)
-    mul!(cache1, povm, x)
-    map!(/, cache2, povm, cache1)
-    map!(log, cache1, cache1)
-    mul!(∇ℓπ, povm', cache2)
-    outcomes ⋅ cache1
+function log_likelihood!(∇ℓπ, buffer1, buffer2, outcomes, traceless_povm, correction, θ)
+    get_probabilities!(buffer1, traceless_povm, correction, θ)
+    broadcast!(/, buffer2, outcomes, buffer1)
+    mul!(∇ℓπ, traceless_povm', buffer2)
+    broadcast!(log, buffer1, buffer1)
+    outcomes ⋅ buffer1
 end
 
 """
-    function proposal!(x, x₀, ∇ℓπ₀, σ)
+    function proposal!(θ, θ₀, ∇ℓπ₀, σ)
 
-Propose a new state `x` given the current state `x₀`.
+Propose a new state `θ` given the current state `θ₀`.
 
-The proposal is done by sampling a random vector `x` from a normal distribution
-with mean `x₀ + σ^2 * ∇ℓπ₀ / 2` and covariance matrix `σ^2I`.
+The proposal is done by sampling a random vector `θ` from a normal distribution
+with mean `θ₀ + σ^2 * ∇ℓπ₀ / 2` and covariance matrix `σ^2I`.
 """
-function proposal!(x, x₀, ∇ℓπ₀, σ)
-    _x = @view x[begin+1:end]
-    _x₀ = @view x₀[begin+1:end]
-    _∇ℓπ₀ = @view ∇ℓπ₀[begin+1:end]
-    randn!(_x)
-    _x .*= σ
-    @. _x += _x₀ + σ^2 * _∇ℓπ₀ / 2
+function proposal!(θ, θ₀, ∇ℓπ₀, σ)
+    randn!(θ)
+    θ .*= σ
+    @. θ += θ₀ + σ^2 * ∇ℓπ₀ / 2
 end
 
-function h(x, x₀, ∇ℓπ, σ)
-    _∇ℓπ = @view ∇ℓπ[begin+1:end]
-    (x ⋅ ∇ℓπ - x₀ ⋅ ∇ℓπ - σ^2 * (_∇ℓπ ⋅ _∇ℓπ) / 4) / 2
+function h(θ, θ₀, ∇ℓπ, σ)
+    (θ ⋅ ∇ℓπ - θ₀ ⋅ ∇ℓπ - σ^2 * (∇ℓπ ⋅ ∇ℓπ) / 4) / 2
 end
 
 """
-    proposal_ratio(x, x₀, ∇ℓπ, ∇ℓπ₀, σ)
+    proposal_ratio(θ, θ₀, ∇ℓπ, ∇ℓπ₀, σ)
 
-Returns the ratio of the transition probability of `x₀` given `x` and the `x` given `x₀`.
+Returns the ratio of the transition probability of `θ₀` given `θ` and the `θ` given `θ₀`.
 
 Used in the acceptance step of the MALA algorithm.
 """
-function proposal_ratio(x, x₀, ∇ℓπ, ∇ℓπ₀, σ)
-    h(x₀, x, ∇ℓπ, σ) - h(x, x₀, ∇ℓπ₀, σ)
+function proposal_ratio(θ, θ₀, ∇ℓπ, ∇ℓπ₀, σ)
+    h(θ, θ₀, ∇ℓπ, σ) - h(θ, θ₀, ∇ℓπ₀, σ)
 end
 
 """
-    acceptance!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, f, σ)
+    acceptance!(θ₀, θ, ℓπ₀, ∇ℓπ₀, ∇ℓπ, f, σ)
 
-Accept or reject the proposed state `x` given the current state `x₀`.
-If accepted, the state `x₀` is updated to `x` and the gradient `∇ℓπ₀` is updated to `∇ℓπ`.
+Accept or reject the proposed state `θ` given the current state `θ₀`.
+If accepted, the state `θ₀` is updated to `θ` and the gradient `∇ℓπ₀` is updated to `∇ℓπ`.
 Returns a tuple with the updated log-likelihood `ℓπ` and a boolean indicating if the state was accepted.
 """
-function acceptance!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function, σ)
-    ℓπ = ℓπ_function(x, ∇ℓπ)
-    if ℓπ - ℓπ₀ + proposal_ratio(x, x₀, ∇ℓπ, ∇ℓπ₀, σ) ≥ log(rand())
-        @. x₀ = x
+function acceptance!(θ₀, θ, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function!, σ)
+    ℓπ = ℓπ_function!(∇ℓπ, θ)
+    if ℓπ - ℓπ₀ + proposal_ratio(θ, θ₀, ∇ℓπ, ∇ℓπ₀, σ) ≥ log(rand())
+        @. θ₀ = θ
         @. ∇ℓπ₀ = ∇ℓπ
         return ℓπ, true
     else
@@ -81,19 +78,19 @@ end
 
 
 """
-    step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function, parameters, ρ, basis, stats, n, target, min, max)
+    step!(θ₀, θ, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function, parameters, ρ, basis, stats, n, target, min, max)
 
 Perform a step of the MALA algorithm.
 """
-function step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function, parameters, ρ, basis, stats, n, target, min, max, chain)
+function step!(θ₀, θ, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function!, parameters, ρ, stats, n, target, min, max, chain)
     not_in_domain = true
     not_in_domain_count = -1
 
     # Keep proposing new states until a valid state is found
     while not_in_domain
-        proposal!(x, x₀, ∇ℓπ₀, parameters[1])
+        proposal!(θ, θ₀, ∇ℓπ₀, parameters[1])
 
-        not_in_domain = !isposdef!(ρ, x, basis)
+        not_in_domain = !isposdef!(ρ, θ)
         not_in_domain_count += 1
 
         # Reduce σ if we keep getting out of domain states
@@ -103,13 +100,13 @@ function step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function, paramet
     end
 
     # Accept or reject the proposed state
-    ℓπ₀, is_accepted = acceptance!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function, parameters[1])
+    ℓπ₀, is_accepted = acceptance!(θ₀, θ, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function!, parameters[1])
 
     # Update the chain statistics
-    fit!(stats, x₀)
+    fit!(stats, θ₀)
 
     if !isnothing(chain)
-        chain[:, n] = x₀
+        chain[:, n] = θ₀
     end
 
     # Update the global statistics
@@ -122,7 +119,7 @@ function step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function, paramet
 end
 
 """
-    sample_markov_chain(ℓπ, x₀::Vector{T}, nsamples, nwarm, basis;
+    sample_markov_chain(ℓπ, θ₀::Vector{T}, nsamples, nwarm, basis;
         verbose=false,
         σ=oftype(T, 1e-2),
         target=0.574,
@@ -131,40 +128,37 @@ end
 
 Sample a Markov chain to sample the posterior of a quantum state tomography experiment using the MALA algorithm.
 """
-function sample_markov_chain(ℓπ, x₀::Vector{T}, nsamples, nwarm, basis;
+function sample_markov_chain(ℓπ_function!, θ₀::Vector{T}, nsamples, nwarm;
     verbose=false,
     σ=oftype(T, 1e-2),
     target=0.574,
-    minimum=1e-8,
-    maximum=100,
+    min=1e-8,
+    max=100,
     chain=nothing) where {T<:Real}
 
-    L = length(x₀)
-    d = Int(√L)
+    L = length(θ₀)
+    d = isqrt(L + 1)
 
     ρ = Matrix{complex(T)}(undef, d, d)
+    @assert isposdef!(ρ, θ₀) "Initial state must be a valid density matrix. It must be positive semidefinite."
 
-
-    @assert x₀[1] ≈ 1 / √d "Initial state must be a valid density matrix. The first element must be 1/√d."
-    @assert isposdef!(ρ, x₀, basis) "Initial state must be a valid density matrix. It must be positive semidefinite."
-
-    x = copy(x₀)
-    ∇ℓπ₀ = similar(x)
-    ∇ℓπ = similar(x)
-    ℓπ₀ = ℓπ(x₀, ∇ℓπ₀)
+    θ = copy(θ₀)
+    ∇ℓπ₀ = similar(θ)
+    ∇ℓπ = similar(θ)
+    ℓπ₀ = ℓπ_function!(∇ℓπ₀, θ₀)
 
     # σ, global_accepted_count, global_out_of_domain_count
     parameters = [σ, zero(T), zero(T)]
     stats = CovMatrix(T, L)
     for n ∈ 1:nwarm
-        ℓπ₀ = step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ, parameters, ρ, basis, stats, n, target, minimum, maximum, nothing)
+        ℓπ₀ = step!(θ₀, θ, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function!, parameters, ρ, stats, n, target, min, max, chain)
     end
 
     parameters[2] = zero(T)
     parameters[3] = zero(T)
     stats = CovMatrix(T, L)
     for n ∈ 1:nsamples
-        ℓπ₀ = step!(x₀, x, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ, parameters, ρ, basis, stats, n, target, minimum, maximum, chain)
+        ℓπ₀ = step!(θ₀, θ, ℓπ₀, ∇ℓπ₀, ∇ℓπ, ℓπ_function!, parameters, ρ, stats, n, target, min, max, chain)
     end
 
     if verbose
@@ -185,51 +179,16 @@ Create a Bayesian inference object from a POVM.
 
 This is passed to the [`prediction`](@ref) method in order to perform the Bayesian inference.
 """
-struct BayesianInference{T1<:Real,T2<:Union{Real,Complex}}
-    povm::Matrix{T1}
-    basis::Array{T2,3}
-    dim::Int
-end
-
-function BayesianInference(povm::Matrix{T}, basis=gell_mann_matrices(Int(√size(povm, 2)), complex(T))) where {T<:Real}
-    dim = Int(√size(povm, 2))
-    BayesianInference(povm, basis, dim)
-end
-
-function BayesianInference(povm::AbstractArray{Matrix{T}}, basis=gell_mann_matrices(size(first(povm),1), complex(T))) where {T}
-    dim = size(first(povm), 1)
-    povm_matrix = stack(Π -> real_orthogonal_projection(Π, basis), vec(povm), dims=1)
-    BayesianInference(povm_matrix, basis, dim)
-end
-
-
-"""
-    reduced_representation(povm, outcomes)
-
-Returns a reduced representation of both the `povm` and the `outcomes`.
-
-One determines the nonzero elements of `outcomes` and then selects the corresponding columns of the `povm`.
-
-This function is used in the Bayesian inference to reduce the size of the problem by ignoring unobserved outcomes.
-"""
-function reduced_representation(povm, outcomes)
-    reduced_outcomes = reduced_representation(outcomes)
-    reduced_povm = similar(povm, size(reduced_outcomes, 2), size(povm, 2))
-
-    for n ∈ axes(reduced_povm, 2), m ∈ axes(reduced_povm, 1)
-        reduced_povm[m, n] = povm[Int(reduced_outcomes[1, m]), n]
-    end
-
-    T = eltype(povm)
-    reduced_povm, map(T, view(reduced_outcomes, 2, :))
+struct BayesianInference{T}
+    problem::StateTomographyProblem{T}
 end
 
 """
     prediction(outcomes, method::BayesianInference{T};
         verbose=false,
         σ=T(1e-2),
-        log_prior=x -> zero(T),
-        x₀=maximally_mixed_state(Int(√size(method.povm, 2)), T),
+        log_prior=θ -> zero(T),
+        θ₀=maximally_mixed_state(Int(√size(method.povm, 2)), T),
         nsamples=10^4,
         nwarm=10^3,
         chain=nothing) where {T}
@@ -242,8 +201,8 @@ Perform a Bayesian inference on the given `outcomes` using the [`BayesianInferen
 - `method::BayesianInference{T}`: The Bayesian inference method.
 - `verbose=false`: Print information about the run.
 - `σ=T(1e-2)`: The initial standard deviation of the proposal distribution.
-- `log_prior=x -> zero(T)`: The log-prior function.
-- `x₀=maximally_mixed_state(Int(√size(method.povm, 2)), T)`: The initial state of the chain.
+- `log_prior=θ -> zero(T)`: The log-prior function.
+- `θ₀=maximally_mixed_state(Int(√size(method.povm, 2)), T)`: The initial state of the chain.
 - `nsamples=10^4`: The number of samples to take.
 - `nwarm=10^3`: The number of warm-up samples to take.
 - `chain=nothing`: If not `nothing`, store the chain in this matrix.
@@ -253,23 +212,26 @@ Perform a Bayesian inference on the given `outcomes` using the [`BayesianInferen
 A tuple with the mean state, its projection in `method.basis` and the covariance matrix.
 The mean state is already returned in matrix form.
 """
-function prediction(outcomes, method::BayesianInference{T1,T2};
+function prediction(outcomes, method::BayesianInference{T};
     verbose=false,
-    σ=T1(1e-2),
-    log_prior=x -> zero(T1),
-    x₀=maximally_mixed_state(size(method.basis, 1), T1),
+    σ=T(1e-2),
+    log_prior=θ -> zero(T),
+    θ₀=zeros(T, size(method.problem.traceless_povm, 2)),
     nsamples=10^4,
     nwarm=10^3,
-    chain=nothing) where {T1,T2}
+    chain=nothing) where {T}
 
-    reduced_povm, reduced_outcomes = reduced_representation(method.povm, outcomes)
+    I = findall(!iszero, outcomes)
+    _outcomes = outcomes[I]
+    _traceless_povm = method.problem.traceless_povm[I, :]
+    _correction = method.problem.correction[I]
+    buffer1 = similar(_correction)
+    buffer2 = similar(_correction)
 
-    cache1 = similar(reduced_outcomes, float(eltype(reduced_outcomes)))
-    cache2 = similar(cache1)
-    posterior(x, ∇ℓπ) = log_likelihood(reduced_outcomes, reduced_povm, x, ∇ℓπ, cache1, cache2) + log_prior(x)
-    stats = sample_markov_chain(posterior, x₀, nsamples, nwarm, method.basis; verbose, σ, chain)
+    ℓπ_function!(∇ℓπ, θ) = log_likelihood!(∇ℓπ, buffer1, buffer2, _outcomes, _traceless_povm, _correction, θ) + log_prior(θ)
+    stats = sample_markov_chain(ℓπ_function!, θ₀, nsamples, nwarm; verbose, σ, chain)
 
-    μ = mean(stats)
-    Σ = cov(stats)[begin+1:end, begin+1:end]
-    linear_combination(μ, method.basis), μ[begin+1:end], Σ
+    θ = mean(stats)
+    Σ = cov(stats)
+    density_matrix_reconstruction(θ), θ, Σ
 end

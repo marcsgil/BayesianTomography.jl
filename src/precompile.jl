@@ -8,7 +8,7 @@
         problem = StateTomographyProblem(povm)
 
         li = LinearInversion(problem)
-        #bi = BayesianInference(povm)
+        bi = BayesianInference(problem)
 
         ρ = sample(GinibreEnsamble(2))
 
@@ -17,7 +17,7 @@
         fidelity(ρ, σ)
 
         outcomes = simulate_outcomes(ρ, povm, 1)
-        #σ, _ = prediction(outcomes, bi, nsamples=1, nwarm=1)
+        σ, _ = prediction(outcomes, bi, nsamples=1, nwarm=1)
 
         ψ = sample(HaarVector(2))
 
@@ -27,6 +27,6 @@
         fidelity(ψ, φ)
 
         outcomes = simulate_outcomes(ψ, povm, 1)
-        #φ, _ = prediction(outcomes, bi, nsamples=1, nwarm=1)
+        φ, _ = prediction(outcomes, bi, nsamples=1, nwarm=1)
     end
 end

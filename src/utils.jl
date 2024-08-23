@@ -97,19 +97,3 @@ function isposdef!(ρ, θ)
     density_matrix_reconstruction!(ρ, θ)
     isposdef!(ρ)
 end
-
-"""
-    maximally_mixed_state(d, ::Type{T}) where {T}
-
-Returns the maximally mixed state of dimension `d`, represented as a vector of projections in the generalized Gell-Mann basis.
-
-The maximally mixed state is defined as `ρ = I / d`.
-
-Se also [`gell_mann_matrices`](@ref).
-"""
-function maximally_mixed_state(d, ::Type{T}) where {T}
-    x = zeros(T, d^2)
-    x[begin] = 1 / √d
-    x
-end
-

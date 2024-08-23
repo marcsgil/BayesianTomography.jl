@@ -29,9 +29,13 @@ function StateTomographyProblem(povm::Array{Matrix{T}}) where {T}
     StateTomographyProblem(traceless_povm, correction)
 end
 
+function get_probabilities!(dest, traceless_povm, correction, θ)
+    copy!(dest, correction)
+    mul!(dest, traceless_povm, θ, one(eltype(dest)), one(eltype(dest)))
+end
+
 function get_probabilities!(dest, problem::StateTomographyProblem{T}, θ) where {T}
-    copy!(dest, problem.correction)
-    mul!(dest, problem.traceless_povm, θ, one(T), one(T))
+    get_probabilities!(dest, problem.traceless_povm, problem.correction, θ)
 end
 
 function get_probabilities(problem::StateTomographyProblem{T}, θ) where {T}
