@@ -47,12 +47,12 @@ end
 function fisher!(F, T, probabilities)
     #I = findall(x -> x > 0, vec(probs))
     #@tullio F[i, j] = T[I[k], i] * T[I[k], j] / probabilities[I[k]]
-    @tullio F[i, j] := T[k, i] * T[k, j] / probabilities[k]
+    @tullio F[i, j] = T[k, i] * T[k, j] / probabilities[k]
 end
 
 function fisher!(F, probabilities, problem, θs)
     get_probabilities!(probabilities, problem, θs)
-    fisher!(F, T, probabilities)
+    fisher!(F, problem.traceless_povm, probabilities)
 end
 
 function fisher(problem, θs)

@@ -74,7 +74,7 @@ function gell_mann_projection!(θ::AbstractArray{T}, M) where {T}
             θ[n] = sqrt2 * imag(M[I...])
         else
             j = n - dim * (dim - 1)
-            θ[n] = (sum(j -> M[j, j], 1:j) - j * M[j+1, j+1]) / convert(T, √(j * (j + 1)))
+            θ[n] = real((sum(j -> M[j, j], 1:j) - j * M[j+1, j+1]) / convert(T, √(j * (j + 1))))
         end
     end
 end

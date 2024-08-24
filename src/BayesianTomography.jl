@@ -22,7 +22,7 @@ export simulate_outcomes, simulate_outcomes!, fidelity, project2density, project
 
 
 include("tomography_problem.jl")
-export StateTomographyProblem, cond, fisher, fisher!
+export StateTomographyProblem, cond, fisher, fisher!, get_probabilities, get_probabilities!
 
 include("linear_inversion.jl")
 include("bayesian_inference.jl")
