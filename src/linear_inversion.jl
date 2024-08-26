@@ -15,17 +15,15 @@ struct LinearInversion{T}
     end
 end
 
-function prediction!(dest, probabilities::Array{Tp}, method::LinearInversion) where {Tp<:AbstractFloat}
+"""function prediction!(dest, probabilities::AbstractArray{Tp}, method::LinearInversion) where {Tp<:AbstractFloat}
     T = eltype(dest)
-    copy!(dest, method.θ_correction)
+    copyto!(dest, method.θ_correction)
     mul!(dest, method.pseudo_inv, probabilities, one(T), one(T))
-end
+end"""
 
-function prediction!(dest, outcomes, method::LinearInversion)
-    T = eltype(dest)
-    N = convert(T, 1 / sum(outcomes))
+function prediction!(dest::AbstractArray{T}, outcomes, method::LinearInversion, N=one(T)) where {T}
     copy!(dest, method.θ_correction)
-    mul!(dest, method.pseudo_inv, outcomes, N, one(T))
+    mul!(dest, method.pseudo_inv, vec(outcomes), N, one(T))
 end
 
 """
@@ -35,27 +33,23 @@ Predict the quantum state from the outcomes of a tomography experiment using the
 """
 function prediction(outcomes, method::LinearInversion{T}) where {T}
     θs = Vector{T}(undef, size(method.problem.traceless_povm, 2))
-    prediction!(θs, outcomes, method)
-    density_matrix_reconstruction(θs), θs, covariance(outcomes, method, θs)
+    N = convert(T, 1 / sum(outcomes))
+    prediction!(θs, outcomes, method, N)
+
+    ρ = density_matrix_reconstruction(θs)
+    project2density!(ρ)
+    gell_mann_projection!(θs, ρ)
+
+    ρ, θs, covariance(outcomes, method, θs)
 end
 
-function covariance(outcomes, method::LinearInversion{T}, θs) where {T}
-    """N = sum(outcomes)
-    povm = method.povm
+function sum_residues(outcomes, method::LinearInversion{T}, θs, N=one(T)) where {T}
+    probs = get_probabilities(method.problem, θs)
+    mapreduce((x, y) -> (x / N - y)^2, +, outcomes, probs)
+end
 
-    sum_residues = zero(eltype(povm))
-
-    @inbounds for i in axes(povm, 1)
-        temp = zero(sum_residues)
-
-        temp += outcomes[i] / N - method.correction[i]
-        @simd for j in axes(povm, 2)
-            temp -= povm[i, j] * θs[j]
-        end
-
-        sum_residues += abs2(temp)
-    end
-
-    inv(povm' * povm) * sum_residues / (size(povm, 1) - size(povm, 2))"""
-    rand(T, method.problem.dim - 1, method.problem.dim - 1)
+function covariance(outcomes, method::LinearInversion{T}, θs, N=one(T)) where {T}
+    residues = sum_residues(outcomes, method, θs, N)
+    traceless_povm = method.problem.traceless_povm
+    inv(traceless_povm' * traceless_povm) * residues / (size(traceless_povm, 1) - size(traceless_povm, 2))
 end

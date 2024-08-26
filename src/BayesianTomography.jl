@@ -17,7 +17,7 @@ include("samplers.jl")
 export sample, HaarUnitary, HaarVector, Simplex, ProductMeasure, GinibreEnsamble
 
 include("utils.jl")
-export simulate_outcomes, simulate_outcomes!, fidelity, project2density, project2pure,
+export simulate_outcomes, simulate_outcomes!, fidelity, project2density, project2density!, project2pure,
     isposdef!, maximally_mixed_state
 
 

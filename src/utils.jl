@@ -64,6 +64,13 @@ function fidelity(ρ::AbstractMatrix, σ::AbstractMatrix)
     abs2(tr(sqrt(sqrt_ρ * σ * sqrt_ρ)))
 end
 
+function fidelity(ρ::AbstractMatrix, θ)
+    σ = density_matrix_reconstruction(θ)
+    fidelity(ρ, σ)
+end
+
+fidelity(ρ, σ) = fidelity(σ, ρ)
+
 fidelity(ψ::AbstractVector, φ::AbstractVector) = abs2(ψ ⋅ φ)
 
 """
@@ -72,10 +79,19 @@ fidelity(ψ::AbstractVector, φ::AbstractVector) = abs2(ψ ⋅ φ)
 Project a Hermitian matrix `ρ` to a density matrix by setting the negative eigenvalues to zero and normalizing the trace to 1.
 """
 function project2density(ρ)
-    F = eigen(hermitianpart(ρ))
-    λs = [λ > 0 ? λ : 0 for λ ∈ real.(F.values)]
-    normalize!(λs, 1)
-    sum(λ * v * v' for (λ, v) ∈ zip(λs, eachcol(F.vectors)))
+    σ = deepcopy(ρ)
+    project2density!(σ)
+    σ
+end
+
+function project2density!(ρ)
+    F = eigen(Hermitian(ρ))
+    broadcast!(x -> x > 0 ? x : 0, F.values, F.values)
+    normalize!(F.values, 1)
+    broadcast!(sqrt, F.values, F.values)
+    rmul!(F.vectors, Diagonal(F.values))
+    mul!(ρ, F.vectors, F.vectors')
+    nothing
 end
 
 """
@@ -84,7 +100,7 @@ end
 Project a Hermitian matrix `ρ` to a pure state by returning the eigenvector corresponding to the largest eigenvalue.
 """
 function project2pure(ρ)
-    F = eigen(hermitianpart(ρ))
+    F = eigen(Hermitian(ρ))
     F.vectors[:, end] # the last eigenvector is the one with the largest eigenvalue
 end
 
