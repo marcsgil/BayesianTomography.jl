@@ -40,12 +40,12 @@ function prediction(outcomes, method::LinearInversion{T}) where {T}
     project2density!(ρ)
     gell_mann_projection!(θs, ρ)
 
-    ρ, θs, covariance(outcomes, method, θs)
+    ρ, θs, covariance(outcomes, method, θs, N)
 end
 
 function sum_residues(outcomes, method::LinearInversion{T}, θs, N=one(T)) where {T}
     probs = get_probabilities(method.problem, θs)
-    mapreduce((x, y) -> (x / N - y)^2, +, outcomes, probs)
+    mapreduce((x, y) -> (x * N - y)^2, +, outcomes, probs)
 end
 
 function covariance(outcomes, method::LinearInversion{T}, θs, N=one(T)) where {T}
