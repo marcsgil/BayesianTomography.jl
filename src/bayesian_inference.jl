@@ -216,7 +216,7 @@ function prediction(outcomes, method::BayesianInference{T};
     verbose=false,
     σ=T(1e-2),
     log_prior=θ -> zero(T),
-    θ₀=zeros(T, size(method.problem.traceless_povm, 2)),
+    θ₀=zeros(T, size(method.problem.traceless_part, 2)),
     nsamples=10^4,
     nwarm=10^3,
     chain=nothing) where {T}
@@ -224,15 +224,19 @@ function prediction(outcomes, method::BayesianInference{T};
     vec_outcomes = vec(outcomes)
     I = findall(!iszero, vec_outcomes)
     _outcomes = vec_outcomes[I]
-    _traceless_povm = method.problem.traceless_povm[I, :]
-    _correction = method.problem.correction[I]
-    buffer1 = similar(_correction)
-    buffer2 = similar(_correction)
+    traceless_part = method.problem.traceless_part[I, :]
+    trace_part = method.problem.trace_part[I]
+    buffer1 = similar(trace_part)
+    buffer2 = similar(trace_part)
 
-    ℓπ_function!(∇ℓπ, θ) = log_likelihood!(∇ℓπ, buffer1, buffer2, _outcomes, _traceless_povm, _correction, θ) + log_prior(θ)
+    ℓπ_function!(∇ℓπ, θ) = log_likelihood!(∇ℓπ, buffer1, buffer2, _outcomes, traceless_part, trace_part, θ) + log_prior(θ)
     stats = sample_markov_chain(ℓπ_function!, θ₀, nsamples, nwarm; verbose, σ, chain)
 
     θ = mean(stats)
     Σ = cov(stats)
-    density_matrix_reconstruction(θ), θ, Σ
+    ρ = density_matrix_reconstruction(θ)
+    post_measurement_state!(ρ, method.problem.inv_kraus_operator)
+    gell_mann_projection!(θ, ρ)
+
+    ρ, θ, Σ
 end

@@ -8,8 +8,8 @@ struct LinearInversion{T}
     pseudo_inv::Matrix{T}
     θ_correction::Vector{T}
     function LinearInversion(problem::StateTomographyProblem{T}) where {T}
-        pseudo_inv = pinv(problem.traceless_povm)
-        θ_correction = pseudo_inv * problem.correction
+        pseudo_inv = pinv(problem.traceless_part)
+        θ_correction = pseudo_inv * problem.trace_part
         rmul!(θ_correction, -one(T))
         new{T}(problem, pseudo_inv, θ_correction)
     end
@@ -32,12 +32,13 @@ end
 Predict the quantum state from the outcomes of a tomography experiment using the [`LinearInversion`](@ref) method.
 """
 function prediction(outcomes, method::LinearInversion{T}) where {T}
-    θs = Vector{T}(undef, size(method.problem.traceless_povm, 2))
+    θs = Vector{T}(undef, size(method.problem.trace_part, 2))
     N = convert(T, 1 / sum(outcomes))
     prediction!(θs, outcomes, method, N)
 
     ρ = density_matrix_reconstruction(θs)
     project2density!(ρ)
+    post_measurement_state!(ρ, method.problem.inv_kraus_operator)
     gell_mann_projection!(θs, ρ)
 
     ρ, θs, covariance(outcomes, method, θs, N)
@@ -50,6 +51,6 @@ end
 
 function covariance(outcomes, method::LinearInversion{T}, θs, N=one(T)) where {T}
     residues = sum_residues(outcomes, method, θs, N)
-    traceless_povm = method.problem.traceless_povm
-    inv(traceless_povm' * traceless_povm) * residues / (size(traceless_povm, 1) - size(traceless_povm, 2))
+    trace_part = method.problem.trace_part
+    inv(trace_part' * trace_part) * residues / (size(trace_part, 1) - size(trace_part, 2))
 end

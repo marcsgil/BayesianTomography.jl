@@ -1,6 +1,6 @@
 using LinearAlgebra, BayesianTomography
 
-outcomes = [34749, 324, 35805, 444, 16324, 17521, 13441,
+outcomes_exp = [34749, 324, 35805, 444, 16324, 17521, 13441,
     16901, 17932, 32028, 15132, 17238, 13171, 17170, 16722, 33586]
 
 H = [1, 0.0im]
@@ -34,27 +34,27 @@ povm = [kron(h, h),
     kron(h, l),
     kron(r, l),]
 
-g = sum(povm)
-
-L = cholesky(g).L
-invL = inv(L)
-
-povm = [invL * Π * invL' for Π in povm]
-
-prob = StateTomographyProblem(povm)
-method = BayesianInference(prob)
-
-ρ, θs, cov = prediction(outcomes, method; nsamples=10^6,
-    nwarm=10^5,)
-
-σ = invL' * ρ * invL
-σ = σ / tr(σ)
-#abs2.(project2pure(σ))
-
-ψ_true = [1, 0, 0, 1] / √2
+ψ_true = [1 + 0im, 0, 0, 1] / √2
 ρ_true = ψ_true * ψ_true'
-fidelity(ρ_true, σ)
-##
-round.(σ, digits=3)
+θ_true = gell_mann_projection(ρ_true)
 
-tr(σ^2)
+problem = StateTomographyProblem(povm)
+method = BayesianInference(problem)
+
+##
+probabilities = get_probabilities(problem, θ_true)
+outcomes = simulate_outcomes(probabilities, 10^5)
+
+
+ρ, θs, cov = prediction(outcomes, method; nsamples=10^8, nwarm=10^7);
+
+fidelity(ρ_true, ρ)
+##
+ρ_article = [
+    0.5069 -0.0239+0.0106im -0.0412-0.0221im 0.4833+0.0329im;
+    -0.0239-0.0106im 0.0048 0.0023+0.0019im -0.0296-0.0077im;
+    -0.0412+0.0221im 0.0023-0.0019im 0.0045 -0.0425+0.0192im;
+    0.4833-0.0329im -0.0296+0.0077im -0.0425-0.0192im 0.4839
+]
+
+fidelity(ρ_article, ρ)
