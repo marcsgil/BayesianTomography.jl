@@ -26,7 +26,8 @@ export StateTomographyProblem, cond, fisher, fisher!, get_probabilities, get_pro
 
 include("linear_inversion.jl")
 include("bayesian_inference.jl")
-export BayesianInference, LinearInversion, prediction, get_probs, get_probs!
+include("max_likelihood.jl")
+export BayesianInference, LinearInversion, MaximumLikelihood, prediction, get_probs, get_probs!
 
 using PrecompileTools: @setup_workload, @compile_workload
 include("precompile.jl")

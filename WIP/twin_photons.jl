@@ -1,14 +1,11 @@
 using LinearAlgebra, BayesianTomography
 
-outcomes_exp = [34749, 324, 35805, 444, 16324, 17521, 13441,
-    16901, 17932, 32028, 15132, 17238, 13171, 17170, 16722, 33586]
-
 H = [1, 0.0im]
 V = [0.0im, 1]
-D = [1 + 0im, 1] / √2
-A = [1 + 0im, -1] / √2
-R = [1, im] / √2
-L = [1, -im] / √2
+D = (H + V) / √2
+A = (H - V) / √2
+R = (H - im * V) / √2
+L = (H + im * V) / √2
 
 h = H * H'
 v = V * V'
@@ -38,17 +35,19 @@ povm = [kron(h, h),
 ρ_true = ψ_true * ψ_true'
 θ_true = gell_mann_projection(ρ_true)
 
+outcomes = [34749, 324, 35805, 444, 16324, 17521, 13441,
+    16901, 17932, 32028, 15132, 17238, 13171, 17170, 16722, 33586]
+
 problem = StateTomographyProblem(povm)
+frequencies = normalize(outcomes, 1)
+
+#method = MaximumLikelihood(problem)
+#ρ_pred, θ_pred = prediction(frequencies, method);
+
 method = BayesianInference(problem)
+ρ, θs, cov = prediction(frequencies, method; nsamples=10^6, nwarm=10^5);
 
-##
-probabilities = get_probabilities(problem, θ_true)
-outcomes = simulate_outcomes(probabilities, 10^5)
-
-
-ρ, θs, cov = prediction(outcomes, method; nsamples=10^8, nwarm=10^7);
-
-fidelity(ρ_true, ρ)
+fidelity(ρ_true, ρ_pred)
 ##
 ρ_article = [
     0.5069 -0.0239+0.0106im -0.0412-0.0221im 0.4833+0.0329im;
@@ -57,4 +56,17 @@ fidelity(ρ_true, ρ)
     0.4833-0.0329im -0.0296+0.0077im -0.0425-0.0192im 0.4839
 ]
 
-fidelity(ρ_article, ρ)
+fidelity(ρ_article, ρ_true)
+##
+θ_article = gell_mann_projection(ρ_article)
+buffer = similar(frequencies)
+
+BayesianTomography.log_likelihood!(buffer, frequencies, problem.traceless_part, problem.trace_part, θ_article)
+BayesianTomography.log_likelihood!(buffer, frequencies, problem.traceless_part, problem.trace_part, θ_pred)
+BayesianTomography.log_likelihood!(buffer, frequencies, problem.traceless_part, problem.trace_part, θ_true)
+##
+@time for n ∈ 1:10
+    prediction(frequencies, method)
+end
+
+@benchmark prediction($frequencies, $method)

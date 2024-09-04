@@ -60,8 +60,7 @@ Calculate the fidelity between two quantum states.
 The states can be pure or mixed, and they are represented by vectors `ψ` and `φ` or density matrices `ρ` and `σ`, respectively.
 """
 function fidelity(ρ::AbstractMatrix, σ::AbstractMatrix)
-    sqrt_ρ = sqrt(ρ)
-    abs2(tr(sqrt(sqrt_ρ * σ * sqrt_ρ)))
+    abs2(tr(sqrt(ρ * σ)))
 end
 
 function fidelity(ρ::AbstractMatrix, θ)
@@ -79,19 +78,30 @@ fidelity(ψ::AbstractVector, φ::AbstractVector) = abs2(ψ ⋅ φ)
 Project a Hermitian matrix `ρ` to a density matrix by setting the negative eigenvalues to zero and normalizing the trace to 1.
 """
 function project2density(ρ)
-    σ = deepcopy(ρ)
-    project2density!(σ)
-    σ
+    F = eigen(Hermitian(ρ))
+    vals = reverse(F.values)
+    vecs = reverse(F.vectors, dims=2)
+    λs = similar(vals)
+    d = length(vals)
+
+    accumulator = zero(real(eltype(ρ)))
+    for i ∈ d:(-1):1
+        if vals[i] + accumulator / i ≥ 0
+            for j ∈ 1:i
+                λs[j] = vals[j] + accumulator / i
+            end
+            break
+        else
+            λs[i] = zero(eltype(λs))
+            accumulator += vals[i]
+        end
+    end
+
+    vecs * Diagonal(λs) * vecs'
 end
 
 function project2density!(ρ)
-    F = eigen(Hermitian(ρ))
-    broadcast!(x -> x > 0 ? x : 0, F.values, F.values)
-    normalize!(F.values, 1)
-    broadcast!(sqrt, F.values, F.values)
-    rmul!(F.vectors, Diagonal(F.values))
-    mul!(ρ, F.vectors, F.vectors')
-    nothing
+    ρ .= project2density(ρ)
 end
 
 """
