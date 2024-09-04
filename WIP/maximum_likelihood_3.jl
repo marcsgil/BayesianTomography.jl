@@ -1,33 +1,63 @@
-using LinearAlgebra, BayesianTomography, Distributions
+using LinearAlgebra
 
-function simplified_pgd_qst(problem, outcomes, θ₀, step_size; max_iter=1000)
-    vec_outcomes = vec(outcomes)
-    traceless_part = problem.traceless_part
-    trace_part = problem.trace_part
-    buffer1 = similar(trace_part)
-    buffer2 = similar(trace_part)
-    ρ = density_matrix_reconstruction(θ₀)
+function project2density(μ)
+    F = eigen(μ, sortby=λ -> -real(λ))
+    vals = real.(F.values)
+    vecs = F.vectors
+    λs = similar(vals)
+    d = length(vals)
 
-    ℓπ_function!(∇ℓπ, θ) = BayesianTomography.log_likelihood!(∇ℓπ, buffer1, buffer2, vec_outcomes, traceless_part, trace_part, θ)
-
-    θ = zeros(eltype(problem.traceless_part), size(problem.traceless_part, 2))
-
-    for _ in 1:max_iter
-        ∇ℓπ(θ)
-        θ .+= step_size * ∇ℓπ(θ)
-        density_matrix_reconstruction!(ρ, θ)
-        project2density!(ρ)
-        gell_mann_projection!(θ, ρ)
+    accumulator = zero(real(eltype(μ)))
+    for i ∈ d:(-1):1
+        if vals[i] + accumulator / i ≥ 0
+            for j ∈ 1:i
+                λs[j] = vals[j] + accumulator / i
+            end
+            break
+        else
+            λs[i] = 0
+            accumulator += vals[i]
+        end
     end
+
+    vecs * Diagonal(λs) * vecs'
+end
+
+μ = rand(ComplexF64, 2, 2)
+μ /= tr(μ)
+@code_warntype project2density(μ)
+eigvals(project2density(μ))
+
+function ∇ℓ(ρ, counts, povm)
+    ∇ℓ = zero(ρ)
+    for (count, Π) in zip(counts, povm)
+        prob = real(tr(Π * ρ))
+        change = Π * (count / prob)
+        if all(isfinite, change)
+            ∇ℓ += change
+        end
+    end
+    ∇ℓ - tr(∇ℓ) * I / size(ρ, 1)
+end
+
+function gradient_ascent(counts, povm, ρ₀, step_size, max_iter)
+    ρ = copy(ρ₀)
+
+    for i in 1:max_iter
+        grad = ∇ℓ(ρ, counts, povm)
+        ρ += step_size * grad
+        ρ = project2density(ρ)
+    end
+
+    ρ
 end
 ##
-
 H = [1, 0.0im]
 V = [0.0im, 1]
 D = [1 + 0im, 1] / √2
 A = [1 + 0im, -1] / √2
-R = [1, im] / √2
-L = [1, -im] / √2
+R = [1, -im] / √2
+L = [1, im] / √2
 
 h = H * H'
 v = V * V'
@@ -39,25 +69,21 @@ l = L * L'
 povm = [h, v, d, a, r, l] / 3
 sum(povm)
 ##
-θ = [1 / √2, 0, 0]
-θ₀ = zero(θ)
-ρ = density_matrix_reconstruction(θ)
+povm2 = [kron(Π1, Π2) for Π1 in povm, Π2 in povm]
+##
+dim = 4
+X = rand(ComplexF64, dim, dim)
+ρ = X' * X
+ρ ./= tr(ρ)
+ρ₀ = Matrix(I(dim) / (dim + 0im))
 
-probs = [real(tr(Π * ρ)) for Π in povm]
-Categorical()
+probs = [real(tr(Π * ρ)) for Π in povm2]
+counts = [round(Int, prob * 10^3) for prob in probs]
+frequencies = normalize(counts, 1)
 
+#@code_warntype gradient_ascent(frequencies, povm2, ρ₀, 0.01, 1000)
 
-#outcomes = simulate_outcomes(ρ, povm, 10^5)
-#frequencies = normalize(outcomes, 1)
-
-@code_warntype simplified_pgd_qst(∇F, ρ₀, 0.01, povm, probs; max_iter=1000)
-
-ρ_pred = simplified_pgd_qst(∇F, ρ₀, 0.01, povm, probs; max_iter=10000)
-
-
-ρ
-ρ_pred
-
-F(ρ_pred, povm, probs) / F(ρ, povm, probs)
-
-[real(tr(Π * ρ_pred)) for Π in povm]
+ρ_pred = gradient_ascent(frequencies, povm2, ρ₀, 0.01, 500)
+real(tr(sqrt(ρ * ρ_pred)))
+##
+@benchmark gradient_ascent($frequencies, $povm2, $ρ₀, 0.01, 500)
