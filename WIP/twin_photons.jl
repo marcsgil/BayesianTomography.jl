@@ -41,11 +41,11 @@ outcomes = [34749, 324, 35805, 444, 16324, 17521, 13441,
 problem = StateTomographyProblem(povm)
 frequencies = normalize(outcomes, 1)
 
-#method = MaximumLikelihood(problem)
-#ρ_pred, θ_pred = prediction(frequencies, method);
+method = MaximumLikelihood(problem)
+ρ_pred, θ_pred = prediction(frequencies, method);
 
-method = BayesianInference(problem)
-ρ, θs, cov = prediction(frequencies, method; nsamples=10^6, nwarm=10^5);
+#method = BayesianInference(problem)
+#ρ_pred, θs, cov = prediction(outcomes, method; nsamples=10^6, nwarm=10^5);
 
 fidelity(ρ_true, ρ_pred)
 ##

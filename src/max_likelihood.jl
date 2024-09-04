@@ -4,6 +4,9 @@ end
 
 function log_likelihood!(buffer, frequencies, traceless_part, trace_part, θ)
     get_probabilities!(buffer, traceless_part, trace_part, θ)
+    #@show minimum(buffer)
+    #@show maximum(buffer)
+    #@show sum(buffer)
     broadcast!(log, buffer, buffer)
     frequencies ⋅ buffer
 end
@@ -11,9 +14,11 @@ end
 function update_θ!(θ, ρ, t, ∇ℓπ)
     @. θ = θ + t * ∇ℓπ
     density_matrix_reconstruction!(ρ, θ)
-    project2density!(ρ)
-    gell_mann_projection!(θ, ρ)
-
+    #project2density!(ρ)
+    σ = project2density(ρ)
+    gell_mann_projection!(θ, σ)
+    #@show eigmin(Hermitian(ρ))
+    #@show eigmax(Hermitian(ρ))
 end
 
 function gradient_ascent!(θ, θ_candidate, buffer1, buffer2, ∇ℓπ, ρ, δ, frequencies, trace_part, traceless_part, t, γ, max_iter, tol)
@@ -48,7 +53,7 @@ function prediction(outcomes, method::MaximumLikelihood{T};
     tol=1e-12) where {T}
 
     I = findall(!iszero, vec(outcomes))
-    frequencies = normalize(outcomes, 1)[I]
+    frequencies = normalize(outcomes[I], 1)
     traceless_part = method.problem.traceless_part[I, :]
     trace_part = method.problem.trace_part[I]
     buffer1 = similar(trace_part)
