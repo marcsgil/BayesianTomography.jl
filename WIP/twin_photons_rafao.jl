@@ -1,4 +1,4 @@
-using CSV, LinearAlgebra
+using CSV, LinearAlgebra, BayesianTomography
 
 file = CSV.File("WIP/CountsForAndre.csv", header=false)
 
@@ -9,9 +9,7 @@ frequencies = normalize(outcomes, 1)
 ψ1 = [[parse_c(row[5]), parse_c(row[6])] for row ∈ file]
 ψ2 = [[parse_c(row[7]), parse_c(row[8])] for row ∈ file]
 
-povm = [kron(pair[1] * pair[1]', pair[2] * pair[2]') for pair in zip(ψ1, ψ2)]
-
-using BayesianTomography
+povm = [kron(pair[1] * pair[1]', pair[2] * pair[2]') for pair in zip(ψ1, ψ2)] 
 
 problem = StateTomographyProblem(povm)
 

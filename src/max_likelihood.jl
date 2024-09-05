@@ -20,14 +20,13 @@ function gradient_ascent!(θ, θ_candidate, buffer1, buffer2, ∇ℓπ, ρ, δ, 
         ℓ = BayesianTomography.log_likelihood!(∇ℓπ, buffer1, buffer2,
             frequencies, traceless_part, trace_part, θ)
 
-        ti = t
-        update_θ!(θ_candidate, θ, ρ, ti, ∇ℓπ)
+        update_θ!(θ_candidate, θ, ρ, t, ∇ℓπ)
         @. δ = θ_candidate - θ
 
         # Backtracking line search
-        while log_likelihood!(buffer1, frequencies, traceless_part, trace_part, θ_candidate) ≤ ℓ + real(∇ℓπ ⋅ δ - (δ ⋅ δ) / (2ti))
-            ti *= γ
-            update_θ!(θ_candidate, θ, ρ, ti, ∇ℓπ)
+        while log_likelihood!(buffer1, frequencies, traceless_part, trace_part, θ_candidate) ≤ ℓ + real(∇ℓπ ⋅ δ - (δ ⋅ δ) / (2t))
+            t *= γ
+            update_θ!(θ_candidate, θ, ρ, t, ∇ℓπ)
             @. δ = θ_candidate - θ
         end
 
