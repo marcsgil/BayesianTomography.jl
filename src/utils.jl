@@ -72,36 +72,45 @@ fidelity(ρ, σ) = fidelity(σ, ρ)
 
 fidelity(ψ::AbstractVector, φ::AbstractVector) = abs2(ψ ⋅ φ)
 
+function get_w(λs, j)
+    (sum(view(λs, 1:j)) - 1) / j
+end
+
+function project_onto_simplex!(λs)
+    w = zero(eltype(λs))
+    for i ∈ eachindex(λs)
+        new_w = get_w(λs, i)
+        if real(λs[i]) - new_w < 0
+            break
+        else
+            w = new_w
+        end
+    end
+
+    for (n, λ) in enumerate(λs)
+        λs[n] = max(λ - w, zero(w))
+    end
+
+end
+
 """
     project2density(ρ)
 
 Project a Hermitian matrix `ρ` to a density matrix by setting the negative eigenvalues to zero and normalizing the trace to 1.
 """
-function project2density(ρ)
-    F = eigen(Hermitian(ρ))
-    vals = reverse(F.values)
-    vecs = reverse(F.vectors, dims=2)
-    λs = similar(vals)
-    d = length(vals)
+function project2density!(ρ)
+    vals, vecs = eigen!(Hermitian(ρ), sortby=x -> -x)
+    project_onto_simplex!(vals)
+    broadcast!(√, vals, vals)
 
-    accumulator = zero(real(eltype(ρ)))
-    for i ∈ d:(-1):1
-        if vals[i] + accumulator / i ≥ 0
-            for j ∈ 1:i
-                λs[j] = vals[j] + accumulator / i
-            end
-            break
-        else
-            λs[i] = zero(eltype(λs))
-            accumulator += vals[i]
-        end
-    end
-
-    vecs * Diagonal(λs) * vecs'
+    rmul!(vecs, Diagonal(vals))
+    mul!(ρ, vecs, vecs')
 end
 
-function project2density!(ρ)
-    ρ .= project2density(ρ)
+function project2density(ρ)
+    σ = copy(ρ)
+    project2density!(σ)
+    σ
 end
 
 """
