@@ -70,7 +70,7 @@ end
 
 fidelity(ρ, σ) = fidelity(σ, ρ)
 
-fidelity(ψ::AbstractVector, φ::AbstractVector) = abs2(ψ ⋅ φ)
+fidelity(ψ::AbstractVector, φ::AbstractVector) = abs2(ψ ⋅ φ) / sum(abs2, ψ) / sum(abs2, ϕ)
 
 function get_w(λs, j)
     (sum(view(λs, 1:j)) - 1) / j
