@@ -1,6 +1,7 @@
 struct StateTomographyProblem{Tr<:AbstractFloat,Tc<:Complex}
     measurement::Array{Matrix{Tc}}
     dim::Int
+    g::Matrix{Tc}
     kraus_operator::UpperTriangular{Tc,Matrix{Tc}}
     inv_kraus_operator::UpperTriangular{Tc,Matrix{Tc}}
     effective_povm::Array{Matrix{Tc}}
@@ -29,7 +30,7 @@ function StateTomographyProblem(measurement)
         gell_mann_projection!(view(traceless_part, n, :), Π)
     end
 
-    StateTomographyProblem(measurement, dim, kraus_operator, inv_kraus_operator, effective_povm, traceless_part, trace_part)
+    StateTomographyProblem(measurement, dim, g, kraus_operator, inv_kraus_operator, effective_povm, traceless_part, trace_part)
 end
 
 """
