@@ -2,6 +2,21 @@ struct MaximumLikelihood{T}
     problem::StateTomographyProblem{T}
 end
 
+function log_likelihood!(∇ℓπ, buffer1, buffer2, frequencies, traceless_povm, correction, y, x)
+    get_probabilities!(buffer1, traceless_povm, correction, y)
+
+    if any(x -> x < 0, buffer1)
+        y .= x
+        get_probabilities!(buffer1, traceless_povm, correction, y)
+    end
+
+    broadcast!(/, buffer2, frequencies, buffer1)
+    mul!(∇ℓπ, traceless_povm', buffer2)
+    broadcast!(log, buffer1, buffer1)
+    frequencies ⋅ buffer1
+end
+
+
 function log_likelihood!(buffer, frequencies, traceless_part, trace_part, x)
     get_probabilities!(buffer, traceless_part, trace_part, x)
     broadcast!(log, buffer, buffer)
@@ -21,8 +36,8 @@ function gradient_ascent!(x, x_prev, y, buffer1, buffer2, ∇ℓπ, ρ, δ, δ_h
     θ = 1
 
     for i in 1:max_iter
-        ℓ = BayesianTomography.log_likelihood!(∇ℓπ, buffer1, buffer2,
-            frequencies, traceless_part, trace_part, x)
+        ℓ = log_likelihood!(∇ℓπ, buffer1, buffer2,
+            frequencies, traceless_part, trace_part, y, x)
 
         update_x!(x, y, ρ, t, ∇ℓπ)
         @. δ = x - y
@@ -32,9 +47,10 @@ function gradient_ascent!(x, x_prev, y, buffer1, buffer2, ∇ℓπ, ρ, δ, δ_h
             t *= β
             update_x!(x, y, ρ, t, ∇ℓπ)
             @. δ = x - y
+            iszero(δ) && return nothing
         end
 
-        δ_hat .= x - x_prev
+        @. δ_hat = x - x_prev
 
         if sum(abs2, δ) < tol
             break
@@ -57,9 +73,9 @@ end
 function prediction(outcomes, method::MaximumLikelihood{T};
     x₀=zeros(T, size(method.problem.traceless_part, 2)),
     t=0.4,
-    β=0.6,
-    max_iter=10^4,
-    tol=1e-6) where {T}
+    β=0.8,
+    max_iter=10^3,
+    tol=1e-10) where {T}
 
     I = findall(!iszero, vec(outcomes))
     frequencies = normalize(outcomes[I], 1)
