@@ -179,26 +179,26 @@ Create a Bayesian inference object from a POVM.
 
 This is passed to the [`prediction`](@ref) method in order to perform the Bayesian inference.
 """
-struct BayesianInference{T}
-    problem::StateTomographyProblem{T}
+struct BayesianInference{T1,T2}
+    problem::StateTomographyProblem{T1,T2}
 end
 
 """
-    prediction(outcomes, method::BayesianInference{T};
+    prediction(outcomes, method::BayesianInference{T1, T2};
         verbose=false,
-        σ=T(1e-2),
-        log_prior=θ -> zero(T),
-        θ₀=maximally_mixed_state(Int(√size(method.povm, 2)), T),
+        σ=T1(1e-2),
+        log_prior=θ -> zero(T1),
+        θ₀=maximally_mixed_state(Int(√size(method.povm, 2)), T1),
         nsamples=10^4,
         nwarm=10^3,
-        chain=nothing) where {T}
+        chain=nothing) where {T1}
 
 Perform a Bayesian inference on the given `outcomes` using the [`BayesianInference`](@ref) `method`.
 
 # Arguments
 
 - `outcomes`: The outcomes of the experiment.
-- `method::BayesianInference{T}`: The Bayesian inference method.
+- `method::BayesianInference{T1, T2}`: The Bayesian inference method.
 - `verbose=false`: Print information about the run.
 - `σ=T(1e-2)`: The initial standard deviation of the proposal distribution.
 - `log_prior=θ -> zero(T)`: The log-prior function.
@@ -212,14 +212,14 @@ Perform a Bayesian inference on the given `outcomes` using the [`BayesianInferen
 A tuple with the mean state, its projection in `method.basis` and the covariance matrix.
 The mean state is already returned in matrix form.
 """
-function prediction(outcomes, method::BayesianInference{T};
+function prediction(outcomes, method::BayesianInference{T1,T2};
     verbose=false,
-    σ=T(1e-2),
-    log_prior=θ -> zero(T),
-    θ₀=zeros(T, size(method.problem.traceless_part, 2)),
+    σ=T1(1e-2),
+    log_prior=θ -> zero(T1),
+    θ₀=zeros(T1, size(method.problem.traceless_part, 2)),
     nsamples=10^4,
     nwarm=10^3,
-    chain=nothing) where {T}
+    chain=nothing) where {T1,T2}
 
     vec_outcomes = vec(outcomes)
     I = findall(!iszero, vec_outcomes)

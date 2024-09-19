@@ -1,5 +1,5 @@
-struct MaximumLikelihood{T}
-    problem::StateTomographyProblem{T}
+struct MaximumLikelihood{T1, T2}
+    problem::StateTomographyProblem{T1, T2}
 end
 
 function log_likelihood!(∇ℓπ, buffer1, buffer2, frequencies, traceless_povm, correction, y, x)
@@ -70,12 +70,12 @@ function gradient_ascent!(x, x_prev, y, buffer1, buffer2, ∇ℓπ, ρ, δ, δ_h
     end
 end
 
-function prediction(outcomes, method::MaximumLikelihood{T};
-    x₀=zeros(T, size(method.problem.traceless_part, 2)),
+function prediction(outcomes, method::MaximumLikelihood{T1, T2};
+    x₀=zeros(T1, size(method.problem.traceless_part, 2)),
     t=0.4,
     β=0.8,
     max_iter=10^3,
-    tol=1e-10) where {T}
+    tol=1e-10) where {T1, T2}
 
     I = findall(!iszero, vec(outcomes))
     frequencies = normalize(outcomes[I], 1)

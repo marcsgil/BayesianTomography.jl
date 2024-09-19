@@ -1,12 +1,12 @@
-struct StateTomographyProblem{Tr<:AbstractFloat,Tc<:Complex}
-    measurement::Array{Matrix{Tc}}
+struct StateTomographyProblem{T1<:AbstractFloat,T2<:Complex}
+    measurement::Array{Matrix{T2}}
     dim::Int
-    g::Matrix{Tc}
-    kraus_operator::UpperTriangular{Tc,Matrix{Tc}}
-    inv_kraus_operator::UpperTriangular{Tc,Matrix{Tc}}
-    effective_povm::Array{Matrix{Tc}}
-    traceless_part::Matrix{Tr}
-    trace_part::Vector{Tr}
+    g::Matrix{T2}
+    kraus_operator::UpperTriangular{T2,Matrix{T2}}
+    inv_kraus_operator::UpperTriangular{T2,Matrix{T2}}
+    effective_povm::Array{Matrix{T2}}
+    traceless_part::Matrix{T1}
+    trace_part::Vector{T1}
 end
 
 function StateTomographyProblem(measurement)

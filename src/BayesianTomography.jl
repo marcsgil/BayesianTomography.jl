@@ -7,18 +7,12 @@ include("gell_mann_matrices.jl")
 export GellMannMatrices, gell_mann_projection!, gell_mann_reconstruction!, density_matrix_reconstruction!,
     gell_mann_projection, gell_mann_reconstruction, density_matrix_reconstruction
 
-include("augmentation.jl")
-export compose_povm, unitary_transform, unitary_transform!, augment_povm
-
-include("representations.jl")
-export complete_representation, reduced_representation, History
-
 include("samplers.jl")
 export sample, HaarUnitary, HaarVector, Simplex, ProductMeasure, GinibreEnsamble
 
 include("utils.jl")
 export simulate_outcomes, simulate_outcomes!, fidelity, project2density, project2density!, project2pure,
-    isposdef!, maximally_mixed_state
+    isposdef!, maximally_mixed_state, get_projector, polarization_state
 
 
 include("tomography_problem.jl")

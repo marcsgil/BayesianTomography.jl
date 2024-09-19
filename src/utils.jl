@@ -1,32 +1,27 @@
 """
-    simulate_outcomes(ψ::AbstractVector, povm, N; atol=1e-3)
-    simulate_outcomes(ρ::AbstractMatrix, povm, N; atol=1e-3)
-    simulate_outcomes(probs, N; atol=1e-3)
+    simulate_outcomes(ψ::AbstractVector, measurement, N)
+    simulate_outcomes(ρ::AbstractMatrix, measurement, N)
+    simulate_outcomes(probs, N)
 
-Simulate the `N` outcomes of a quantum measurement represented by a `povm` on a quantum state.
+Simulate the `N` outcomes of a quantum `measurement` on a quantum state.
 
 The state can be pure or mixed, and it is represented by a vector `ψ` or a density matrix `ρ`, respectively.
 Alternativelly, one can directly provide the probabilities of the outcomes in the `probs` array.
-
-`atol` is the absolute tolerance for the probabilities to be considered non-negative and to sum to 1.
 """
-function simulate_outcomes(ψ::AbstractVector, povm, N; atol=1e-3)
-    probs = [real(dot(ψ, E, ψ)) for E in povm]
-    simulate_outcomes(probs, N; atol)
+function simulate_outcomes(ψ::AbstractVector, measurement, N)
+    probs = [real(dot(ψ, E, ψ)) for E in measurement]
+    simulate_outcomes(probs, N)
 end
 
-function simulate_outcomes(ρ::AbstractMatrix, povm, N; atol=1e-3)
+function simulate_outcomes(ρ::AbstractMatrix, povm, N)
     probs = [real(ρ ⋅ E) for E in povm]
-    simulate_outcomes(probs, N; atol)
+    simulate_outcomes(probs, N)
 end
 
-function simulate_outcomes(probs, N; atol=1e-3)
-    @assert minimum(probs) ≥ -atol "The probabilities must be non-negative"
-    S = sum(probs)
-    @assert isapprox(S, 1; atol) "The sum of the probabilities is not 1, but $S"
-    dist = Categorical(map(x -> x > 0 ? x : zero(x), normalize(vec(probs), 1)))
-
-    complete_representation(History(rand(dist, N)), length(probs))
+function simulate_outcomes(probs, N)
+    outcomes = copy(probs)
+    simulate_outcomes!(outcomes, N)
+    outcomes
 end
 
 
@@ -35,14 +30,8 @@ end
 
 Simulate the `N` outcomes of a probability specified by the `probs` array.
 The results are stored in the `probs` array.
-
-`atol` is the absolute tolerance for the probabilities to be considered non-negative and to sum to 1.
 """
-function simulate_outcomes!(probs, N; atol=1e-3)
-    @assert minimum(probs) ≥ -atol "The probabilities must be non-negative"
-    S = sum(probs)
-    @assert isapprox(S, 1; atol) "The sum of the probabilities is not 1, but $S"
-
+function simulate_outcomes!(probs, N)
     dist = Categorical(map(x -> x > 0 ? x : zero(x), normalize(vec(probs), 1)))
     samples = rand(dist, N)
 
@@ -61,11 +50,6 @@ The states can be pure or mixed, and they are represented by vectors `ψ` and `�
 """
 function fidelity(ρ::AbstractMatrix, σ::AbstractMatrix)
     abs2(tr(sqrt(ρ * σ)))
-end
-
-function fidelity(ρ::AbstractMatrix, θ)
-    σ = density_matrix_reconstruction(θ)
-    fidelity(ρ, σ)
 end
 
 fidelity(ρ, σ) = fidelity(σ, ρ)
@@ -132,3 +116,29 @@ function isposdef!(ρ, θ)
     density_matrix_reconstruction!(ρ, θ)
     isposdef!(ρ)
 end
+
+"""
+    get_projector(ψ)
+
+Calculate the matrix representing the projection operator over the state `ψ`.
+"""
+get_projector(ψ) = ψ * ψ'
+
+"""
+    polarization_state(::Val{S}, ::Type{T}=ComplexF32) where {S, T}
+
+Return the polarization state corresponding to the symbol `S` as a vector of type `T`.
+`S` can be one of the following symbols:
+- `:H` for horizontal polarization
+- `:V` for vertical polarization
+- `:D` for diagonal polarization
+- `:A` for antidiagonal polarization
+- `:R` for right-handed circular polarization
+- `:L` for left-handed circular polarization
+"""
+polarization_state(::Val{:H}, ::Type{T}=ComplexF32) where {T} = T[1, 0]
+polarization_state(::Val{:V}, ::Type{T}=ComplexF32) where {T} = T[0, 1]
+polarization_state(::Val{:D}, ::Type{T}=ComplexF32) where {T} = T[1/√2, 1/√2]
+polarization_state(::Val{:A}, ::Type{T}=ComplexF32) where {T} = T[1/√2, -1/√2]
+polarization_state(::Val{:R}, ::Type{T}=ComplexF32) where {T} = T[1/√2, -im/√2]
+polarization_state(::Val{:L}, ::Type{T}=ComplexF32) where {T} = T[1/√2, im/√2]
