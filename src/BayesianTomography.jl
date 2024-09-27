@@ -1,6 +1,6 @@
 module BayesianTomography
 
-using Distributions, OnlineStats, Tullio, LinearAlgebra, StatsBase, Random
+using Distributions, OnlineStats, Tullio, LinearAlgebra, Random
 import LinearAlgebra: isposdef!, isposdef, cond
 
 include("gell_mann_matrices.jl")
@@ -15,13 +15,14 @@ export simulate_outcomes, simulate_outcomes!, fidelity, project2density, project
     isposdef!, maximally_mixed_state, get_projector, polarization_state
 
 
-include("tomography_problem.jl")
-export StateTomographyProblem, cond, fisher, fisher!, get_probabilities, get_probabilities!
+include("measurement.jl")
+export Measurement, ProportionalMeasurement, cond, fisher, fisher!, get_probabilities, get_probabilities!
 
 include("linear_inversion.jl")
-include("bayesian_inference.jl")
 include("max_likelihood.jl")
-export BayesianInference, LinearInversion, MaximumLikelihood, prediction, get_probs, get_probs!
+include("bayesian_inference.jl")
+export BayesianInference, LinearInversion, PreAllocatedLinearInversion,
+    MaximumLikelihood, prediction, get_probs, get_probs!
 
 using PrecompileTools: @setup_workload, @compile_workload
 include("precompile.jl")

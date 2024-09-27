@@ -179,9 +179,7 @@ Create a Bayesian inference object from a POVM.
 
 This is passed to the [`prediction`](@ref) method in order to perform the Bayesian inference.
 """
-struct BayesianInference{T1,T2}
-    problem::StateTomographyProblem{T1,T2}
-end
+struct BayesianInference end
 
 """
     prediction(outcomes, method::BayesianInference{T1, T2};
@@ -212,11 +210,11 @@ Perform a Bayesian inference on the given `outcomes` using the [`BayesianInferen
 A tuple with the mean state, its projection in `method.basis` and the covariance matrix.
 The mean state is already returned in matrix form.
 """
-function prediction(outcomes, method::BayesianInference{T1,T2};
+function prediction(outcomes, measurement::Measurement{T1,T2}, ::BayesianInference;
     verbose=false,
-    σ=T1(1e-2),
-    log_prior=θ -> zero(T1),
-    θ₀=zeros(T1, size(method.problem.traceless_part, 2)),
+    σ=T2(1e-2),
+    log_prior=θ -> zero(T2),
+    θ₀=zeros(T2, size(measurement.traceless_part, 2)),
     nsamples=10^4,
     nwarm=10^3,
     chain=nothing) where {T1,T2}
@@ -224,8 +222,8 @@ function prediction(outcomes, method::BayesianInference{T1,T2};
     vec_outcomes = vec(outcomes)
     I = findall(!iszero, vec_outcomes)
     _outcomes = vec_outcomes[I]
-    traceless_part = method.problem.traceless_part[I, :]
-    trace_part = method.problem.trace_part[I]
+    traceless_part = measurement.traceless_part[I, :]
+    trace_part = measurement.trace_part[I]
     buffer1 = similar(trace_part)
     buffer2 = similar(trace_part)
 
@@ -235,8 +233,6 @@ function prediction(outcomes, method::BayesianInference{T1,T2};
     θ = mean(stats)
     Σ = cov(stats)
     ρ = density_matrix_reconstruction(θ)
-    post_measurement_state!(ρ, method.problem.inv_kraus_operator)
-    gell_mann_projection!(θ, ρ)
 
     ρ, θ, Σ
 end

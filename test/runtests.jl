@@ -1,5 +1,5 @@
 using BayesianTomography, Random, Test, LinearAlgebra
-Random.seed!(1234)
+Random.seed!(123)
 
 include("tomography_tests.jl")
 

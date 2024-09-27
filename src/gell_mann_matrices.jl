@@ -79,6 +79,21 @@ function gell_mann_projection!(θ::AbstractArray{T}, M) where {T}
     end
 end
 
+struct Projector{T<:AbstractVector}
+    ψ::T
+end
+
+function Base.getindex(p::Projector, I::Vararg{Int,2})
+    conj(p.ψ[I[1]]) * p.ψ[I[2]]
+end
+
+Base.size(p::Projector) = (length(p.ψ), length(p.ψ))
+Base.size(p::Projector, i::Int) = length(p.ψ)
+
+function gell_mann_projection!(θ::AbstractArray{T}, ψ::AbstractVector) where {T}
+    gell_mann_projection!(θ, Projector(ψ))
+end
+
 function gell_mann_projection(M)
     dim = size(M, 1)
     θ = Vector{real(eltype(M))}(undef, dim^2 - 1)

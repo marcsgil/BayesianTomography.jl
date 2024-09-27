@@ -1,43 +1,18 @@
 """
-    simulate_outcomes(ψ::AbstractVector, measurement, N)
-    simulate_outcomes(ρ::AbstractMatrix, measurement, N)
-    simulate_outcomes(probs, N)
+    simulate_outcomes(state, measurement, N)
 
-Simulate the `N` outcomes of a quantum `measurement` on a quantum state.
-
-The state can be pure or mixed, and it is represented by a vector `ψ` or a density matrix `ρ`, respectively.
-Alternativelly, one can directly provide the probabilities of the outcomes in the `probs` array.
+Simulate the `N` outcomes of a quantum `measurement` on a quantum `state`.
 """
-function simulate_outcomes(ψ::AbstractVector, measurement, N)
-    probs = [real(dot(ψ, E, ψ)) for E in measurement]
-    simulate_outcomes(probs, N)
-end
+function simulate_outcomes(state, measurement, N; atol=1e-4)
+    probs = get_probabilities(measurement, gell_mann_projection(state))
+    s = sum(probs)
 
-function simulate_outcomes(ρ::AbstractMatrix, povm, N)
-    probs = [real(ρ ⋅ E) for E in povm]
-    simulate_outcomes(probs, N)
-end
+    @assert isapprox(s, 1; atol) """\n The probabilities do not sum to 1, but to $s.
+        If you believe this is due to numerical errors, you can try to increase the `atol` parameter.
+        """
 
-function simulate_outcomes(probs, N)
-    outcomes = copy(probs)
-    simulate_outcomes!(outcomes, N)
-    outcomes
-end
-
-
-"""
-    simulate_outcomes!(probs, N; atol=1e-3)
-
-Simulate the `N` outcomes of a probability specified by the `probs` array.
-The results are stored in the `probs` array.
-"""
-function simulate_outcomes!(probs, N)
-    dist = Categorical(map(x -> x > 0 ? x : zero(x), normalize(vec(probs), 1)))
-    samples = rand(dist, N)
-
-    Threads.@threads for n in eachindex(probs)
-        probs[n] = count(x -> x == n, samples)
-    end
+    normalize!(probs, 1)
+    rand(Multinomial(N, probs))
 end
 
 """
@@ -52,9 +27,13 @@ function fidelity(ρ::AbstractMatrix, σ::AbstractMatrix)
     abs2(tr(sqrt(ρ * σ)))
 end
 
-fidelity(ρ, σ) = fidelity(σ, ρ)
+fidelity(ψ::AbstractVector, φ::AbstractVector) = abs2(ψ ⋅ φ)
 
-fidelity(ψ::AbstractVector, φ::AbstractVector) = abs2(ψ ⋅ φ) / sum(abs2, ψ) / sum(abs2, φ)
+function fidelity(ρ::AbstractArray, φ::AbstractVector)
+    dot(φ, ρ, φ)
+end
+
+fidelity(ρ, φ) = fidelity(φ, ρ)
 
 function get_w(λs, j)
     (sum(view(λs, 1:j)) - 1) / j

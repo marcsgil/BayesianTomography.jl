@@ -1,6 +1,4 @@
-struct MaximumLikelihood{T1, T2}
-    problem::StateTomographyProblem{T1, T2}
-end
+struct MaximumLikelihood end
 
 function log_likelihood!(∇ℓπ, buffer1, buffer2, frequencies, traceless_povm, correction, y, x)
     get_probabilities!(buffer1, traceless_povm, correction, y)
@@ -70,17 +68,17 @@ function gradient_ascent!(x, x_prev, y, buffer1, buffer2, ∇ℓπ, ρ, δ, δ_h
     end
 end
 
-function prediction(outcomes, method::MaximumLikelihood{T1, T2};
-    x₀=zeros(T1, size(method.problem.traceless_part, 2)),
+function prediction(outcomes, measurement::Measurement{T1,T2}, ::MaximumLikelihood;
+    x₀=zeros(T2, measurement.dim^2 - 1),
     t=0.4,
     β=0.8,
     max_iter=10^3,
-    tol=1e-10) where {T1, T2}
+    tol=1e-10) where {T1,T2}
 
     I = findall(!iszero, vec(outcomes))
     frequencies = normalize(outcomes[I], 1)
-    traceless_part = method.problem.traceless_part[I, :]
-    trace_part = method.problem.trace_part[I]
+    traceless_part = measurement.traceless_part[I, :]
+    trace_part = measurement.trace_part[I]
     buffer1 = similar(trace_part)
     buffer2 = similar(trace_part)
     ∇ℓπ = similar(x₀)
@@ -94,8 +92,6 @@ function prediction(outcomes, method::MaximumLikelihood{T1, T2};
     gradient_ascent!(x, x_prev, y, buffer1, buffer2, ∇ℓπ, ρ, δ, δ_hat, frequencies, trace_part, traceless_part, t, β, max_iter, tol)
 
     density_matrix_reconstruction!(ρ, y)
-    post_measurement_state!(ρ, method.problem.inv_kraus_operator)
-    gell_mann_projection!(y, ρ)
 
     ρ, y
 end
