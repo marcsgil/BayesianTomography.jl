@@ -79,9 +79,14 @@ function kraus_transformation!(ρ::AbstractMatrix, A)
     lmul!(A, ρ)
 end
 
-function kraus_transformation!(ψ::AbstractVector, A)
-    temp = A * ψ
-    ψ .= temp
+function kraus_transformation(ρ::AbstractMatrix, A)
+    σ = copy(ρ)
+    kraus_transformation!(σ, A)
+    σ
+end
+
+function kraus_transformation(ψ::AbstractVector, A)
+    A * ψ
 end
 
 function post_measurement_state!(ρ::AbstractMatrix, A)
@@ -123,7 +128,7 @@ function ProportionalMeasurement(measurement)
     kraus_operator = cholesky(g).U
     inv_kraus_operator = inv(kraus_operator)
 
-    effective_measurement = Measurement(kraus_transformation!(Π, inv_kraus_operator') for Π ∈ measurement)
+    effective_measurement = Measurement(kraus_transformation(Π, inv_kraus_operator') for Π ∈ measurement)
 
     T1 = typeof(effective_measurement)
     T2 = eltype(g)

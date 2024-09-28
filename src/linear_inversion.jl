@@ -44,7 +44,7 @@ function PreAllocatedLinearInversion(measurement)
     PreAllocatedLinearInversion{typeof(pseudo_inv),typeof(θ_correction)}(pseudo_inv, θ_correction)
 end
 
-function prediction(outcomes, measurement, method::PreAllocatedLinearInversion)
+function prediction(outcomes, measurement::Measurement, method::PreAllocatedLinearInversion)
     θs = similar(method.θ_correction)
     T = eltype(θs)
     N = convert(T, 1 / sum(outcomes))
