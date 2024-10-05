@@ -28,11 +28,6 @@ function prediction(outcomes, measurement::ProportionalMeasurement, mthd; kwargs
     ρ, θs
 end
 
-function sum_residues(outcomes, method::LinearInversion, θs, N=one(T))
-    probs = get_probabilities(method.problem, θs)
-    mapreduce((x, y) -> (x * N - y)^2, +, outcomes, probs)
-end
-
 struct PreAllocatedLinearInversion{T1<:AbstractMatrix,T2<:AbstractVector}
     pseudo_inv::T1
     θ_correction::T2
@@ -57,6 +52,31 @@ function prediction(outcomes, measurement::Measurement, method::PreAllocatedLine
     ρ, θs
 end
 
+struct NormalEquations{T1,T2}
+    TdagT::T1
+    Tdagq::T2
+end
+
+function NormalEquations(measurement)
+    T = measurement.traceless_part
+    TdagT = similar(T, size(T, 2), size(T, 2))
+    Tdagq = similar(T, size(T, 2))
+    NormalEquations{typeof(TdagT),typeof(Tdagq)}(TdagT, Tdagq)
+end
+
+function prediction(outcomes, measurement::Measurement, method::NormalEquations)
+    mul!(method.TdagT, measurement.traceless_part', measurement.traceless_part)
+    mul!(method.Tdagq, measurement.traceless_part', normalize(vec(outcomes), 1) .- measurement.trace_part)
+    θs = method.TdagT \ method.Tdagq
+    ρ = density_matrix_reconstruction(θs)
+    project2density!(ρ)
+    ρ, θs
+end
+
+function sum_residues(outcomes, method::LinearInversion, θs, N=one(T))
+    probs = get_probabilities(method.problem, θs)
+    mapreduce((x, y) -> (x * N - y)^2, +, outcomes, probs)
+end
 
 function covariance(outcomes, method::LinearInversion, θs, N=one(T))
     residues = sum_residues(outcomes, method, θs, N)

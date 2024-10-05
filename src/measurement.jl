@@ -21,7 +21,8 @@ function get_decomposition(measurement)
     traceless_part = Matrix{T}(undef, length(measurement), dim^2 - 1)
     trace_part = Vector{T}(undef, length(measurement))
 
-    for (n, Π) ∈ enumerate(measurement)
+    Threads.@threads for n ∈ eachindex(trace_part)
+        Π = measurement[n]
         trace_part[n] = extract_trace(Π, dim)
         gell_mann_projection!(view(traceless_part, n, :), Π)
     end

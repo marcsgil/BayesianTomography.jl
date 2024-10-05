@@ -21,7 +21,7 @@ export Measurement, ProportionalMeasurement, cond, fisher, fisher!, get_probabil
 include("linear_inversion.jl")
 include("max_likelihood.jl")
 include("bayesian_inference.jl")
-export BayesianInference, LinearInversion, PreAllocatedLinearInversion,
+export BayesianInference, LinearInversion, PreAllocatedLinearInversion, NormalEquations,
     MaximumLikelihood, prediction, get_probs, get_probs!
 
 using PrecompileTools: @setup_workload, @compile_workload
