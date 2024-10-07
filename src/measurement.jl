@@ -15,8 +15,6 @@ function extract_trace(ψ::AbstractVector, dim)
     sum(abs2, ψ) / dim
 end
 
-
-
 function set_decomposition!(traceless_part, trace_part, measurement, dim)
     for (Π, n, slice) ∈ zip(measurement, eachindex(trace_part), eachslice(traceless_part, dims=1))
         trace_part[n] = extract_trace(Π, dim)
@@ -43,6 +41,11 @@ function get_decomposition(measurement)
 
     set_decomposition!(traceless_part, trace_part, measurement, dim)
 
+    """hreads.@threads for n ∈ eachindex(trace_part)
+        Π = measurement[n]
+        trace_part[n] = extract_trace(Π, dim)
+        gell_mann_projection!(view(traceless_part, n, :), Π)
+    end"""
     traceless_part, trace_part, dim
 end
 
