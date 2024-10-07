@@ -15,17 +15,33 @@ function extract_trace(ψ::AbstractVector, dim)
     sum(abs2, ψ) / dim
 end
 
+
+
+function set_decomposition!(traceless_part, trace_part, measurement, dim)
+    for (Π, n, slice) ∈ zip(measurement, eachindex(trace_part), eachslice(traceless_part, dims=1))
+        trace_part[n] = extract_trace(Π, dim)
+        gell_mann_projection!(slice, Π)
+    end
+end
+
+function set_decomposition!(traceless_part, trace_part, measurement, dim, tasks_per_thread)
+    chunk_size = max(1, length(trace_part) ÷ (tasks_per_thread * nthreads()))
+    chunk_traceless_part = partition(eachslice(traceless_part, dims=1), chunk_size)
+    chunk_trace_part = partition(trace_part, chunk_size)
+    chunk_measurements = partition(measurement, chunk_size)
+
+    for iter ∈ zip(chunk_traceless_part, chunk_trace_part, chunk_measurements)
+        fetch(@spawn set_decomposition!(iter..., dim))
+    end
+end
+
 function get_decomposition(measurement)
     dim = size(first(measurement), 1)
     T = real(eltype(first(measurement)))
     traceless_part = Matrix{T}(undef, length(measurement), dim^2 - 1)
     trace_part = Vector{T}(undef, length(measurement))
 
-    Threads.@threads for n ∈ eachindex(trace_part)
-        Π = measurement[n]
-        trace_part[n] = extract_trace(Π, dim)
-        gell_mann_projection!(view(traceless_part, n, :), Π)
-    end
+    set_decomposition!(traceless_part, trace_part, measurement, dim)
 
     traceless_part, trace_part, dim
 end

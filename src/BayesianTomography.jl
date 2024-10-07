@@ -2,6 +2,8 @@ module BayesianTomography
 
 using Distributions, OnlineStats, Tullio, LinearAlgebra, Random
 import LinearAlgebra: isposdef!, isposdef, cond
+using Base.Threads: @spawn, nthreads
+using Base.Iterators: partition
 
 include("gell_mann_matrices.jl")
 export GellMannMatrices, gell_mann_projection!, gell_mann_reconstruction!, density_matrix_reconstruction!,
