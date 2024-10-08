@@ -1,73 +1,37 @@
-abstract type AbstractMeasurement end
+abstract type AbstractMeasurement{T<:AbstractFloat,TM<:AbstractMatrix{T}} end
 
-struct Measurement{T1,T2} <: AbstractMeasurement
-    measurement::T1
-    traceless_part::Matrix{T2}
-    trace_part::Vector{T2}
+struct Measurement{T<:AbstractFloat,TM<:AbstractMatrix{T}} <: AbstractMeasurement{T,TM}
+    measurement_matrix::TM
     dim::Int
 end
 
-function extract_trace(Π::AbstractMatrix, dim)
-    real(tr(Π)) / dim
+function Measurement(itr)
+    dim = size(first(itr), 1)
+    measurement_matrix = hcat((get_coefficients(Π) for Π ∈ itr)...)'
+    Measurement(measurement_matrix, dim)
 end
 
-function extract_trace(ψ::AbstractVector, dim)
-    sum(abs2, ψ) / dim
-end
+get_traceless_part(measurement_matrix::AbstractMatrix) = @view measurement_matrix[:, begin+1:end]
+get_trace_part(measurement_matrix::AbstractMatrix) = @view measurement_matrix[:, begin]
+get_traceless_part(μ) = get_traceless_part(μ.measurement_matrix)
+get_trace_part(μ) = get_trace_part(μ.measurement_matrix)
 
-function set_decomposition!(traceless_part, trace_part, measurement, dim)
-    for (Π, n, slice) ∈ zip(measurement, eachindex(trace_part), eachslice(traceless_part, dims=1))
-        trace_part[n] = extract_trace(Π, dim)
-        gell_mann_projection!(slice, Π)
-    end
-end
+function get_probabilities!(dest, measurement_matrix, θ)
+    dim = Int(sqrt(size(measurement_matrix, 2)))
+    trace_part = get_trace_part(measurement_matrix)
+    traceless_part = get_traceless_part(measurement_matrix)
 
-function set_decomposition!(traceless_part, trace_part, measurement, dim, tasks_per_thread)
-    chunk_size = max(1, length(trace_part) ÷ (tasks_per_thread * nthreads()))
-    chunk_traceless_part = partition(eachslice(traceless_part, dims=1), chunk_size)
-    chunk_trace_part = partition(trace_part, chunk_size)
-    chunk_measurements = partition(measurement, chunk_size)
-
-    for iter ∈ zip(chunk_traceless_part, chunk_trace_part, chunk_measurements)
-        fetch(@spawn set_decomposition!(iter..., dim))
-    end
-end
-
-function get_decomposition(measurement)
-    dim = size(first(measurement), 1)
-    T = real(eltype(first(measurement)))
-    traceless_part = Matrix{T}(undef, length(measurement), dim^2 - 1)
-    trace_part = Vector{T}(undef, length(measurement))
-
-    set_decomposition!(traceless_part, trace_part, measurement, dim)
-
-    """hreads.@threads for n ∈ eachindex(trace_part)
-        Π = measurement[n]
-        trace_part[n] = extract_trace(Π, dim)
-        gell_mann_projection!(view(traceless_part, n, :), Π)
-    end"""
-    traceless_part, trace_part, dim
-end
-
-function Measurement(measurement)
-    traceless_part, trace_part, dim = get_decomposition(measurement)
-    Measurement{typeof(measurement),eltype(trace_part)}(measurement, traceless_part, trace_part, dim)
-end
-
-function get_probabilities!(dest, traceless_part, trace_part, θ)
     copy!(dest, trace_part)
-    mul!(dest, traceless_part, θ, one(eltype(dest)), one(eltype(dest)))
-
-    axpy!
+    mul!(dest, traceless_part, θ, one(eltype(dest)), convert(eltype(dest), 1 / √dim))
 end
 
-function get_probabilities!(dest, measurement, θ)
-    get_probabilities!(dest, measurement.traceless_part, measurement.trace_part, θ)
+function get_probabilities!(dest, μ::Measurement, θ)
+    get_probabilities!(dest, μ.measurement_matrix, θ)
 end
 
-function get_probabilities(measurement, θ)
-    dest = similar(measurement.trace_part)
-    get_probabilities!(dest, measurement, θ)
+function get_probabilities(μ, θ)
+    dest = similar(μ.measurement_matrix, size(μ.measurement_matrix, 1))
+    get_probabilities!(dest, μ, θ)
     dest
 end
 
@@ -75,16 +39,16 @@ function fisher!(F, T, probabilities)
     @tullio F[i, j] = T[k, i] * T[k, j] / probabilities[k]
 end
 
-function fisher!(F, probabilities, measurement::Measurement, θs)
-    get_probabilities!(probabilities, measurement, θs)
-    fisher!(F, measurement.traceless_part, probabilities)
+function fisher!(F, probabilities, μ::Measurement, θs)
+    get_probabilities!(probabilities, μ, θs)
+    fisher!(F, get_traceless_part(μ), probabilities)
     nothing
 end
 
 function fisher(measurement, θs)
     D = measurement.dim^2 - 1
     F = Matrix{eltype(θs)}(undef, D, D)
-    probabilities = similar(measurement.trace_part)
+    probabilities = similar(μ.measurement_matrix, size(μ.measurement_matrix, 1))
     fisher!(F, probabilities, measurement, θs)
     F
 end
@@ -127,11 +91,12 @@ function post_measurement_state(state, A)
     result
 end
 
-struct ProportionalMeasurement{T1,T2} <: AbstractMeasurement
-    effective_measurement::T1
-    g::Matrix{T2}
-    kraus_operator::UpperTriangular{T2,Matrix{T2}}
-    inv_kraus_operator::UpperTriangular{T2,Matrix{T2}}
+struct ProportionalMeasurement{T<:AbstractFloat,TM<:AbstractMatrix{T}} <: AbstractMeasurement{T,TM}
+    measurement_matrix::TM
+    dim::Int
+    g::Matrix{Complex{T}}
+    kraus_operator::UpperTriangular{Complex{T},Matrix{Complex{T}}}
+    inv_kraus_operator::UpperTriangular{Complex{T},Matrix{Complex{T}}}
 end
 
 function get_g(measurement, ::Type{T}) where {T<:AbstractVector}
@@ -142,55 +107,39 @@ function get_g(measurement, ::Type{T}) where {T<:AbstractMatrix}
     sum(measurement)
 end
 
-function ProportionalMeasurement(measurement)
-    g = get_g(measurement, typeof(first(measurement)))
+function ProportionalMeasurement(itr)
+    g = get_g(itr, typeof(first(itr)))
 
     kraus_operator = cholesky(g).U
     inv_kraus_operator = inv(kraus_operator)
 
-    effective_measurement = Measurement(kraus_transformation(Π, inv_kraus_operator') for Π ∈ measurement)
+    dim = size(first(itr), 1)
+    measurement_matrix = hcat((get_coefficients(kraus_transformation(Π, inv_kraus_operator')) for Π ∈ itr)...)'
 
-    T1 = typeof(effective_measurement)
-    T2 = eltype(g)
-
-    ProportionalMeasurement{T1,T2}(effective_measurement, g, kraus_operator, inv_kraus_operator)
+    ProportionalMeasurement(measurement_matrix, dim, g, kraus_operator, inv_kraus_operator)
 end
 
-function Base.getproperty(measurement::ProportionalMeasurement, symbol::Symbol)
-    if symbol === :dim
-        measurement.effective_measurement.dim
-    elseif symbol === :traceless_part
-        measurement.effective_measurement.traceless_part
-    elseif symbol === :trace_part
-        measurement.effective_measurement.trace_part
-    elseif symbol === :measurement
-        measurement.effective_measurement.measurement
-    else
-        getfield(measurement, symbol)
-    end
+function get_probabilities!(dest, μ::ProportionalMeasurement, θ)
+    η = post_measurement_state(θ, μ.kraus_operator)
+    get_probabilities!(dest, μ.measurement_matrix, η)
 end
 
-function get_probabilities!(dest, measurement::ProportionalMeasurement, θ)
-    η = post_measurement_state(θ, measurement.kraus_operator)
-    get_probabilities!(dest, measurement.traceless_part, measurement.trace_part, η)
-end
-
-function fisher!(F, probabilities, measurement::ProportionalMeasurement, θs)
+function fisher!(F, probabilities, μ::ProportionalMeasurement, θs)
     σ = density_matrix_reconstruction(θs)
-    A = measurement.kraus_operator
+    A = μ.kraus_operator
     kraus_transformation!(σ, A)
     N = real(tr(σ))
 
-    D = measurement.dim^2 - 1
+    D = μ.dim^2 - 1
     J = Matrix{eltype(θs)}(undef, D, D)
 
-    ωs = GellMannMatrices(measurement.dim, eltype(σ))
+    ωs = GellMannMatrices(μ.dim, eltype(σ))
     Ωs = [kraus_transformation!(ω, A) for ω ∈ ωs]
 
     J = [real(tr(Ω * ω) / N - tr(σ * ω) * tr(Ω) / N^2) for ω ∈ ωs, Ω ∈ Ωs]
 
-    get_probabilities!(probabilities, measurement, θs)
-    fisher!(F, measurement.traceless_part, probabilities)
+    get_probabilities!(probabilities, μ, θs)
+    fisher!(F, μ.traceless_part, probabilities)
 
     F .= J' * F * J
     nothing
@@ -201,6 +150,6 @@ end
 
 Calculate the condition number of the linear transformation associated with the `povm`.
 """
-function LinearAlgebra.cond(measurement, p::Real=2)
-    cond(measurement.traceless_part, p)
+function LinearAlgebra.cond(μ, p::Real=2)
+    cond(get_traceless_part(μ), p)
 end

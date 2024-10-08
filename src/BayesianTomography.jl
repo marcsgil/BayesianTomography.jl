@@ -5,9 +5,12 @@ import LinearAlgebra: isposdef!, isposdef, cond
 using Base.Threads: @spawn, nthreads
 using Base.Iterators: partition
 
+include("generalized_operators.jl")
+
 include("gell_mann_matrices.jl")
 export GellMannMatrices, gell_mann_projection!, gell_mann_reconstruction!, density_matrix_reconstruction!,
-    gell_mann_projection, gell_mann_reconstruction, density_matrix_reconstruction
+    gell_mann_projection, gell_mann_reconstruction, density_matrix_reconstruction,
+    get_coefficients, reconstruction, get_coefficients!, reconstruction!
 
 include("samplers.jl")
 export sample, HaarUnitary, HaarVector, Simplex, ProductMeasure, GinibreEnsamble

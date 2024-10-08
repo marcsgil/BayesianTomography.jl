@@ -1,14 +1,14 @@
 """
-    log_likelihood!(∇ℓπ, buffer, outcomes, traceless_povm, correction, θ)
+    log_likelihood!(∇ℓπ, buffer, outcomes, measurement_matrix, θ)
 
 Returns the log-likelihood of the `outcomes` given the `traceless_povm`, `correction` and the state `θ`.
 The gradient of the log-likelihood is stored in `∇ℓπ`.
 `buffer` is an array used to store intermediate results.
 """
-function log_likelihood!(∇ℓπ, buffer1, buffer2, outcomes, traceless_povm, correction, θ)
-    get_probabilities!(buffer1, traceless_povm, correction, θ)
+function log_likelihood!(∇ℓπ, buffer1, buffer2, outcomes, measurement_matrix, θ)
+    get_probabilities!(buffer1, measurement_matrix, θ)
     broadcast!(/, buffer2, outcomes, buffer1)
-    mul!(∇ℓπ, traceless_povm', buffer2)
+    mul!(∇ℓπ, get_traceless_part(measurement_matrix)', buffer2)
     broadcast!(log, buffer1, buffer1)
     outcomes ⋅ buffer1
 end
@@ -210,24 +210,23 @@ Perform a Bayesian inference on the given `outcomes` using the [`BayesianInferen
 A tuple with the mean state, its projection in `method.basis` and the covariance matrix.
 The mean state is already returned in matrix form.
 """
-function prediction(outcomes, measurement::Measurement{T1,T2}, ::BayesianInference;
+function prediction(outcomes, measurement::Measurement{T,TM}, ::BayesianInference;
     verbose=false,
-    σ=T2(1e-2),
-    log_prior=θ -> zero(T2),
-    θ₀=zeros(T2, size(measurement.traceless_part, 2)),
+    σ=T(1e-2),
+    log_prior=θ -> zero(T),
+    θ₀=zeros(T, measurement.dim^2 - 1),
     nsamples=10^4,
     nwarm=10^3,
-    chain=nothing) where {T1,T2}
+    chain=nothing) where {T,TM}
 
     vec_outcomes = vec(outcomes)
     I = findall(!iszero, vec_outcomes)
     _outcomes = vec_outcomes[I]
-    traceless_part = measurement.traceless_part[I, :]
-    trace_part = measurement.trace_part[I]
-    buffer1 = similar(trace_part)
-    buffer2 = similar(trace_part)
+    measurement_matrix = measurement.measurement_matrix[I, :]
+    buffer1 = similar(measurement_matrix, size(measurement_matrix, 1))
+    buffer2 = similar(buffer1)
 
-    ℓπ_function!(∇ℓπ, θ) = log_likelihood!(∇ℓπ, buffer1, buffer2, _outcomes, traceless_part, trace_part, θ) + log_prior(θ)
+    ℓπ_function!(∇ℓπ, θ) = log_likelihood!(∇ℓπ, buffer1, buffer2, _outcomes, measurement_matrix, θ) + log_prior(θ)
     stats = sample_markov_chain(ℓπ_function!, θ₀, nsamples, nwarm; verbose, σ, chain)
 
     θ = mean(stats)

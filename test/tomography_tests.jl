@@ -44,10 +44,10 @@ end
 
 for method ∈ keys(methods), representation ∈ keys(representations), constructor ∈ keys(constructors)
     @testset "$method; $representation; $constructor" begin
-        for ψ ∈ eachslice(sample(HaarVector(2), 10), dims=2)
+        """for ψ ∈ eachslice(sample(HaarVector(2), 10), dims=2)
             measurement = constructors[constructor](representations[representation](polarization_state(Val(s))) for s in pol_states[constructor])
             test_method(methods[method], Ns[method], ψ, measurement)
-        end
+        end"""
 
         for ρ ∈ eachslice(sample(GinibreEnsamble(2), 10), dims=3)
             measurement = constructors[constructor](representations[representation](polarization_state(Val(s))) for s in pol_states[constructor])

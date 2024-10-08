@@ -14,6 +14,7 @@ dims = 10:10:100
 
 for dim ∈ dims
     θs = Vector{Float32}(undef, dim^2 - 1)
+    xs = Vector{Float32}(undef, dim^2)
     ωs = GellMannMatrices(dim)
     σ = Matrix{ComplexF32}(undef, dim, dim)
     X = rand(ComplexF32, dim, dim)
@@ -30,4 +31,6 @@ for dim ∈ dims
     gell_mann_projection!(θs, ρ)
     density_matrix_reconstruction!(σ, θs)
     @test σ ≈ ρ
+
+    @test reconstruction(get_coefficients(X)) ≈ X
 end

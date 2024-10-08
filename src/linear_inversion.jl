@@ -10,18 +10,18 @@ struct LinearInversion end
 
 Predict the quantum state from the outcomes of a tomography experiment using the [`LinearInversion`](@ref) method.
 """
-function prediction(outcomes, measurement::Measurement, ::LinearInversion)
-    θs = measurement.traceless_part \ (normalize(vec(outcomes), 1) .- measurement.trace_part)
+function prediction(outcomes, μ::Measurement, ::LinearInversion)
+    θs = get_traceless_part(μ) \ (normalize(vec(outcomes), 1) .- get_trace_part(μ))
     ρ = density_matrix_reconstruction(θs)
     project2density!(ρ)
 
     ρ, θs
 end
 
-function prediction(outcomes, measurement::ProportionalMeasurement, mthd; kwargs...)
-    ρ, θs = prediction(outcomes, measurement.effective_measurement, mthd; kwargs...)
+function prediction(outcomes, μ::ProportionalMeasurement, mthd; kwargs...)
+    ρ, θs = prediction(outcomes, Measurement(μ.measurement_matrix, μ.dim), mthd; kwargs...)
 
-    post_measurement_state!(ρ, measurement.inv_kraus_operator)
+    post_measurement_state!(ρ, μ.inv_kraus_operator)
     project2density!(ρ)
     gell_mann_projection!(θs, ρ)
 
@@ -33,13 +33,13 @@ struct PreAllocatedLinearInversion{T1<:AbstractMatrix,T2<:AbstractVector}
     θ_correction::T2
 end
 
-function PreAllocatedLinearInversion(measurement)
-    pseudo_inv = pinv(measurement.traceless_part)
-    θ_correction = pseudo_inv * measurement.trace_part
+function PreAllocatedLinearInversion(μ)
+    pseudo_inv = pinv(get_traceless_part(μ))
+    θ_correction = pseudo_inv * get_trace_part(μ)
     PreAllocatedLinearInversion{typeof(pseudo_inv),typeof(θ_correction)}(pseudo_inv, θ_correction)
 end
 
-function prediction(outcomes, measurement::Measurement, method::PreAllocatedLinearInversion)
+function prediction(outcomes, μ::Measurement, method::PreAllocatedLinearInversion)
     θs = similar(method.θ_correction)
     T = eltype(θs)
     N = convert(T, 1 / sum(outcomes))
@@ -57,16 +57,17 @@ struct NormalEquations{T1,T2}
     Tdagq::T2
 end
 
-function NormalEquations(measurement)
-    T = measurement.traceless_part
+function NormalEquations(μ)
+    T = get_traceless_part(μ)
     TdagT = similar(T, size(T, 2), size(T, 2))
     Tdagq = similar(T, size(T, 2))
     NormalEquations{typeof(TdagT),typeof(Tdagq)}(TdagT, Tdagq)
 end
 
-function prediction(outcomes, measurement::Measurement, method::NormalEquations)
-    mul!(method.TdagT, measurement.traceless_part', measurement.traceless_part)
-    mul!(method.Tdagq, measurement.traceless_part', normalize(vec(outcomes), 1) .- measurement.trace_part)
+function prediction(outcomes, μ::Measurement, method::NormalEquations)
+    traceless_part = get_traceless_part(μ)
+    mul!(method.TdagT, traceless_part', traceless_part)
+    mul!(method.Tdagq, traceless_part', normalize(vec(outcomes), 1) .- get_trace_part(μ))
     θs = method.TdagT \ method.Tdagq
     ρ = density_matrix_reconstruction(θs)
     project2density!(ρ)

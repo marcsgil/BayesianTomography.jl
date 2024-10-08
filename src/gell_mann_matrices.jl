@@ -59,7 +59,8 @@ function diag_retrival(n, θz)
     result
 end
 
-function gell_mann_projection!(θ::AbstractArray{T}, M) where {T}
+function _gell_mann_projection!(θ, M::GeneralizedOperator)
+    T = eltype(θ)
     dim = size(M, 1)
     @assert length(θ) == dim^2 - 1
 
@@ -79,20 +80,7 @@ function gell_mann_projection!(θ::AbstractArray{T}, M) where {T}
     end
 end
 
-struct Projector{T<:AbstractVector}
-    ψ::T
-end
-
-function Base.getindex(p::Projector, I::Vararg{Int,2})
-    conj(p.ψ[I[1]]) * p.ψ[I[2]]
-end
-
-Base.size(p::Projector) = (length(p.ψ), length(p.ψ))
-Base.size(p::Projector, i::Int) = length(p.ψ)
-
-function gell_mann_projection!(θ::AbstractArray{T}, ψ::AbstractVector) where {T}
-    gell_mann_projection!(θ, Projector(ψ))
-end
+gell_mann_projection!(θ, M) = _gell_mann_projection!(θ, as_operator(M))
 
 function gell_mann_projection(M)
     dim = size(M, 1)
@@ -101,7 +89,8 @@ function gell_mann_projection(M)
     θ
 end
 
-function gell_mann_reconstruction!(M, θ::AbstractVector{T}) where {T}
+function gell_mann_reconstruction!(M, θ)
+    T = eltype(θ)
     dim = size(M, 1)
     @assert length(θ) == dim^2 - 1
     fill!(M, zero(T))
@@ -136,6 +125,37 @@ function gell_mann_reconstruction(θ)
     dims = Int(sqrt(length(θ) + 1))
     M = Matrix{complex(eltype(θ))}(undef, dims, dims)
     gell_mann_reconstruction!(M, θ)
+    M
+end
+
+function _get_coefficients!(x, M)
+    x[begin] = real(tr(M)) / √size(M, 1)
+    gell_mann_projection!((@view x[begin+1:end]), M)
+end
+
+get_coefficients!(x, M) = _get_coefficients!(x, as_operator(M))
+
+function get_coefficients(M)
+    T = real(eltype(M))
+    dim = size(M, 1)
+    x = Vector{T}(undef, dim^2)
+    get_coefficients!(x, M)
+    x
+end
+
+function reconstruction!(M, x)
+    gell_mann_reconstruction!(M, (@view x[begin+1:end]))
+    dim = size(M, 1)
+    factor = convert(eltype(M), 1 / sqrt(dim))
+    for n ∈ 1:dim
+        M[n, n] += x[begin] * factor
+    end
+end
+
+function reconstruction(x)
+    dim = Int(sqrt(length(x)))
+    M = Matrix{complex(eltype(x))}(undef, dim, dim)
+    reconstruction!(M, x)
     M
 end
 
